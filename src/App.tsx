@@ -135,6 +135,15 @@ export default function App() {
     reader.readAsText(file);
   };
 
+  const handlePrint = () => {
+    setIsShareSheetOpen(false);
+    // iOS Safari in standalone mode (WebApp) sometimes has issues with window.print()
+    // but it's the most reliable way to get a PDF via "Save as PDF" in the print dialog.
+    setTimeout(() => {
+      window.print();
+    }, 500);
+  };
+
   const handleSharePDF = async () => {
     if (!detailRef.current) return;
     
@@ -423,7 +432,7 @@ export default function App() {
                 </div>
               </header>
 
-              <div ref={detailRef} className="space-y-6 p-1">
+              <div ref={detailRef} id="print-area" className="space-y-6 p-1">
                 <div className="bg-white rounded-3xl overflow-hidden shadow-sm">
                   <img src={selectedQuestion.image} alt="题目" className="w-full h-auto" referrerPolicy="no-referrer" />
                 </div>
@@ -661,7 +670,14 @@ export default function App() {
                     className="w-full py-4 text-center text-blue-500 font-medium active:bg-gray-100 flex items-center justify-center space-x-2"
                   >
                     <Download className="w-5 h-5" />
-                    <span>分享为 PDF</span>
+                    <span>分享为 PDF (Canvas)</span>
+                  </button>
+                  <button 
+                    onClick={handlePrint}
+                    className="w-full py-4 text-center text-blue-500 font-medium active:bg-gray-100 flex items-center justify-center space-x-2"
+                  >
+                    <Share className="w-5 h-5" />
+                    <span>打印 / 另存为 PDF (推荐)</span>
                   </button>
                 </div>
                 <button 
