@@ -57,6 +57,7 @@ export default function App() {
   const detailRef = useRef<HTMLDivElement>(null);
   const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
 
   useEffect(() => {
     if (currentView === 'subject' && selectedSubject) {
@@ -134,11 +135,63 @@ export default function App() {
     reader.readAsText(file);
   };
 
+  const handleSharePDF = async () => {
+    if (!detailRef.current) return;
+    
+    try {
+      setIsSharing(true);
+      setIsShareSheetOpen(false);
+      
+      const html2canvas = (await import('html2canvas')).default;
+      const { jsPDF } = await import('jspdf');
+      
+      // Wait for any layout/image rendering
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const canvas = await html2canvas(detailRef.current, {
+        backgroundColor: '#FFFFFF',
+        scale: 1.5,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        imageTimeout: 0
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.8);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: [canvas.width, canvas.height]
+      });
+
+      pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
+      
+      const pdfBlob = pdf.output('blob');
+      const file = new File([pdfBlob], `错题解析_${selectedQuestion?.title}.pdf`, { type: 'application/pdf' });
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: selectedQuestion?.title,
+          text: '来自学霸错题本的 PDF 分享',
+        });
+      } else {
+        pdf.save(`错题解析_${selectedQuestion?.title}.pdf`);
+      }
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      alert('生成 PDF 失败，请尝试截屏分享');
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   const handleShareImage = async () => {
     if (!detailRef.current) return;
     
     try {
       setIsSharing(true);
+      setIsShareSheetOpen(false);
       
       const html2canvas = (await import('html2canvas')).default;
       
@@ -193,7 +246,7 @@ export default function App() {
 
     } catch (error) {
       console.error('Capture failed:', error);
-      alert('生成分享图片失败，请尝试截屏分享');
+      alert('生成分享图片失败，请尝试 PDF 导出或截屏分享');
     } finally {
       setIsSharing(false);
     }
@@ -355,7 +408,7 @@ export default function App() {
                 <h1 className="text-xl font-bold truncate max-w-[150px]">{selectedQuestion.title}</h1>
                 <div className="flex items-center">
                   <button 
-                    onClick={handleShareImage}
+                    onClick={() => setIsShareSheetOpen(true)}
                     className="p-2 text-blue-500"
                     disabled={isSharing}
                   >
@@ -566,6 +619,53 @@ export default function App() {
                 </div>
                 <button 
                   onClick={() => setIsActionSheetOpen(false)}
+                  className="w-full py-4 bg-white rounded-2xl text-center text-blue-500 font-bold active:bg-gray-100"
+                >
+                  取消
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Share Options Sheet */}
+      <AnimatePresence>
+        {isShareSheetOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsShareSheetOpen(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[110]"
+            />
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 p-4 z-[120] pb-safe"
+            >
+              <div className="max-w-md mx-auto space-y-2">
+                <div className="bg-white/90 backdrop-blur-xl rounded-2xl overflow-hidden divide-y divide-gray-200">
+                  <button 
+                    onClick={handleShareImage}
+                    className="w-full py-4 text-center text-blue-500 font-medium active:bg-gray-100 flex items-center justify-center space-x-2"
+                  >
+                    <ImageIcon className="w-5 h-5" />
+                    <span>分享为图片</span>
+                  </button>
+                  <button 
+                    onClick={handleSharePDF}
+                    className="w-full py-4 text-center text-blue-500 font-medium active:bg-gray-100 flex items-center justify-center space-x-2"
+                  >
+                    <Download className="w-5 h-5" />
+                    <span>分享为 PDF</span>
+                  </button>
+                </div>
+                <button 
+                  onClick={() => setIsShareSheetOpen(false)}
                   className="w-full py-4 bg-white rounded-2xl text-center text-blue-500 font-bold active:bg-gray-100"
                 >
                   取消
