@@ -52,6 +52,8 @@ export default function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
 
   useEffect(() => {
     if (currentView === 'subject' && selectedSubject) {
@@ -261,7 +263,7 @@ export default function App() {
               </div>
 
               <button 
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => setIsActionSheetOpen(true)}
                 className="fixed bottom-8 right-8 w-14 h-14 bg-blue-500 text-white rounded-full shadow-xl flex items-center justify-center active:scale-90 transition-transform z-50"
               >
                 <Plus className="w-8 h-8" />
@@ -420,7 +422,7 @@ export default function App() {
         </AnimatePresence>
       </main>
 
-      {/* Hidden File Input for Question Upload */}
+      {/* Hidden File Inputs */}
       <input 
         type="file" 
         accept="image/*" 
@@ -429,6 +431,66 @@ export default function App() {
         onChange={handleFileUpload} 
         className="hidden" 
       />
+      <input 
+        type="file" 
+        accept="image/*" 
+        ref={galleryInputRef} 
+        onChange={handleFileUpload} 
+        className="hidden" 
+      />
+
+      {/* Action Sheet */}
+      <AnimatePresence>
+        {isActionSheetOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsActionSheetOpen(false)}
+              className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[110]"
+            />
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed bottom-0 left-0 right-0 p-4 z-[120] pb-safe"
+            >
+              <div className="max-w-md mx-auto space-y-2">
+                <div className="bg-white/90 backdrop-blur-xl rounded-2xl overflow-hidden divide-y divide-gray-200">
+                  <button 
+                    onClick={() => {
+                      setIsActionSheetOpen(false);
+                      fileInputRef.current?.click();
+                    }}
+                    className="w-full py-4 text-center text-blue-500 font-medium active:bg-gray-100 flex items-center justify-center space-x-2"
+                  >
+                    <Camera className="w-5 h-5" />
+                    <span>拍照记录</span>
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setIsActionSheetOpen(false);
+                      galleryInputRef.current?.click();
+                    }}
+                    className="w-full py-4 text-center text-blue-500 font-medium active:bg-gray-100 flex items-center justify-center space-x-2"
+                  >
+                    <ImageIcon className="w-5 h-5" />
+                    <span>从相册选择</span>
+                  </button>
+                </div>
+                <button 
+                  onClick={() => setIsActionSheetOpen(false)}
+                  className="w-full py-4 bg-white rounded-2xl text-center text-blue-500 font-bold active:bg-gray-100"
+                >
+                  取消
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Loading Overlay */}
       <AnimatePresence>
@@ -455,11 +517,11 @@ export default function App() {
             <BookOpen className="w-6 h-6" />
             <span className="text-[10px] font-medium">首页</span>
           </button>
-          <button onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center -mt-8">
+          <button onClick={() => setIsActionSheetOpen(true)} className="flex flex-col items-center -mt-8">
             <div className="w-14 h-14 bg-blue-500 rounded-full shadow-lg flex items-center justify-center text-white">
               <Camera className="w-7 h-7" />
             </div>
-            <span className="text-[10px] font-medium mt-1 text-blue-500">拍照记录</span>
+            <span className="text-[10px] font-medium mt-1 text-blue-500">记录错题</span>
           </button>
           <button onClick={() => setCurrentView('settings')} className={cn("flex flex-col items-center space-y-1", currentView === 'settings' ? "text-blue-500" : "text-gray-400")}>
             <Share className="w-6 h-6" />
