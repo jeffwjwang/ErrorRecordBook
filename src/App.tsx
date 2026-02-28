@@ -140,20 +140,22 @@ export default function App() {
     try {
       setIsSharing(true);
       
-      // Use dynamic import to help with some build environments
-      const { toPng } = await import('html-to-image');
+      const html2canvas = (await import('html2canvas')).default;
       
       // Wait a bit for any layout adjustments
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 300));
       
-      const dataUrl = await toPng(detailRef.current, {
+      const canvas = await html2canvas(detailRef.current, {
         backgroundColor: '#F2F2F7',
-        cacheBust: true,
-        style: {
-          borderRadius: '0', // Remove rounding for the export
+        scale: 2, // Higher quality
+        useCORS: true,
+        logging: false,
+        onclone: (clonedDoc) => {
+          // You can modify the cloned document here if needed
         }
       });
 
+      const dataUrl = canvas.toDataURL('image/png');
       const blob = await (await fetch(dataUrl)).blob();
       const file = new File([blob], `错题解析_${selectedQuestion?.title}.png`, { type: 'image/png' });
 
