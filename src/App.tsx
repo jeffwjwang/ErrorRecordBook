@@ -142,39 +142,58 @@ export default function App() {
       
       const html2canvas = (await import('html2canvas')).default;
       
-      // Wait a bit for any layout adjustments
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Wait for any layout/image rendering
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       const canvas = await html2canvas(detailRef.current, {
         backgroundColor: '#F2F2F7',
-        scale: 2, // Higher quality
+        scale: 1.5, // Slightly lower scale for mobile memory stability
         useCORS: true,
+        allowTaint: true,
         logging: false,
+        imageTimeout: 0,
         onclone: (clonedDoc) => {
-          // You can modify the cloned document here if needed
+          // Ensure the cloned element is visible and has correct dimensions
+          const element = clonedDoc.querySelector('[ref="detailRef"]') as HTMLElement;
+          if (element) {
+            element.style.borderRadius = '0';
+          }
         }
       });
 
-      const dataUrl = canvas.toDataURL('image/png');
-      const blob = await (await fetch(dataUrl)).blob();
-      const file = new File([blob], `错题解析_${selectedQuestion?.title}.png`, { type: 'image/png' });
+      // Use toBlob instead of toDataURL + fetch for better mobile stability
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          throw new Error('Canvas to Blob failed');
+        }
 
-      if (navigator.share && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: selectedQuestion?.title,
-          text: '来自学霸错题本的分享',
-        });
-      } else {
-        // Fallback to download
-        const link = document.createElement('a');
-        link.download = `错题解析_${selectedQuestion?.title}.png`;
-        link.href = dataUrl;
-        link.click();
-      }
+        const file = new File([blob], `错题解析_${selectedQuestion?.title}.png`, { type: 'image/png' });
+
+        try {
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: selectedQuestion?.title,
+              text: '来自学霸错题本的分享',
+            });
+          } else {
+            // Fallback for browsers that don't support file sharing
+            const dataUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `错题解析_${selectedQuestion?.title}.png`;
+            link.href = dataUrl;
+            link.click();
+          }
+        } catch (shareError) {
+          console.error('Share API failed:', shareError);
+          // If share fails (e.g. user cancelled), don't necessarily show an error alert
+          // unless it's a real failure.
+        }
+      }, 'image/png');
+
     } catch (error) {
-      console.error('Share failed:', error);
-      alert('生成分享图片失败');
+      console.error('Capture failed:', error);
+      alert('生成分享图片失败，请尝试截屏分享');
     } finally {
       setIsSharing(false);
     }
