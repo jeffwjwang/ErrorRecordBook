@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { toPng } from 'html-to-image';
 import { 
   BookOpen, 
   Plus, 
@@ -14,7 +15,8 @@ import {
   Loader2,
   Tag,
   Calendar,
-  Share
+  Share,
+  Share2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -53,7 +55,9 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
   const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   useEffect(() => {
     if (currentView === 'subject' && selectedSubject) {
@@ -129,6 +133,46 @@ export default function App() {
       }
     };
     reader.readAsText(file);
+  };
+
+  const handleShareImage = async () => {
+    if (!detailRef.current) return;
+    
+    try {
+      setIsSharing(true);
+      // Wait a bit for any layout adjustments
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const dataUrl = await toPng(detailRef.current, {
+        backgroundColor: '#F2F2F7',
+        cacheBust: true,
+        style: {
+          borderRadius: '0', // Remove rounding for the export
+        }
+      });
+
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], `错题解析_${selectedQuestion?.title}.png`, { type: 'image/png' });
+
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: selectedQuestion?.title,
+          text: '来自学霸错题本的分享',
+        });
+      } else {
+        // Fallback to download
+        const link = document.createElement('a');
+        link.download = `错题解析_${selectedQuestion?.title}.png`;
+        link.href = dataUrl;
+        link.click();
+      }
+    } catch (error) {
+      console.error('Share failed:', error);
+      alert('生成分享图片失败');
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   const filteredQuestions = questions.filter(q => 
@@ -284,79 +328,95 @@ export default function App() {
                   <ChevronLeft className="w-6 h-6" />
                   列表
                 </button>
-                <h1 className="text-xl font-bold truncate max-w-[200px]">{selectedQuestion.title}</h1>
-                <button 
-                  onClick={() => selectedQuestion.id && handleDelete(selectedQuestion.id)}
-                  className="p-2 text-red-500"
-                >
-                  <Trash2 className="w-6 h-6" />
-                </button>
+                <h1 className="text-xl font-bold truncate max-w-[150px]">{selectedQuestion.title}</h1>
+                <div className="flex items-center">
+                  <button 
+                    onClick={handleShareImage}
+                    className="p-2 text-blue-500"
+                    disabled={isSharing}
+                  >
+                    {isSharing ? <Loader2 className="w-6 h-6 animate-spin" /> : <Share2 className="w-6 h-6" />}
+                  </button>
+                  <button 
+                    onClick={() => selectedQuestion.id && handleDelete(selectedQuestion.id)}
+                    className="p-2 text-red-500"
+                  >
+                    <Trash2 className="w-6 h-6" />
+                  </button>
+                </div>
               </header>
 
-              <div className="bg-white rounded-3xl overflow-hidden shadow-sm">
-                <img src={selectedQuestion.image} alt="题目" className="w-full h-auto" referrerPolicy="no-referrer" />
-              </div>
+              <div ref={detailRef} className="space-y-6 p-1">
+                <div className="bg-white rounded-3xl overflow-hidden shadow-sm">
+                  <img src={selectedQuestion.image} alt="题目" className="w-full h-auto" referrerPolicy="no-referrer" />
+                </div>
 
-              <div className="space-y-4">
-                <div className="bg-white rounded-2xl p-6 shadow-sm space-y-6">
-                  <section>
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-lg font-bold flex items-center">
-                        <Tag className="w-5 h-5 mr-2 text-blue-500" />
-                        分析结果
-                      </h2>
-                      <div className={cn(
-                        "px-3 py-1 rounded-full text-sm font-bold flex items-center space-x-1",
-                        selectedQuestion.analysis.isCorrect ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-                      )}>
-                        {selectedQuestion.analysis.isCorrect ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                        <span>{selectedQuestion.analysis.isCorrect ? '作答正确' : '作答错误/未作答'}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">题目内容</h3>
-                        <p className="text-gray-700 leading-relaxed">{selectedQuestion.analysis.questionText}</p>
-                      </div>
-
-                      <div>
-                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">学生作答</h3>
-                        <p className="text-gray-700 italic">{selectedQuestion.analysis.studentAnswer || '无'}</p>
-                      </div>
-
-                      <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                        <h3 className="text-sm font-bold text-blue-600 uppercase tracking-wider mb-2">解题思路</h3>
-                        <p className="text-blue-900 leading-relaxed whitespace-pre-wrap">{selectedQuestion.analysis.solution}</p>
-                      </div>
-
-                      {!selectedQuestion.analysis.isCorrect && (
-                        <div className="p-4 bg-red-50 rounded-xl border border-red-100">
-                          <h3 className="text-sm font-bold text-red-600 uppercase tracking-wider mb-2">错误解析</h3>
-                          <p className="text-red-900 leading-relaxed">{selectedQuestion.analysis.errorAnalysis}</p>
-                        </div>
-                      )}
-
-                      <div>
-                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">考察知识点</h3>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedQuestion.analysis.knowledgePoints.map(kp => (
-                            <span key={kp} className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm">{kp}</span>
-                          ))}
+                <div className="space-y-4">
+                  <div className="bg-white rounded-2xl p-6 shadow-sm space-y-6">
+                    <section>
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-bold flex items-center">
+                          <Tag className="w-5 h-5 mr-2 text-blue-500" />
+                          分析结果
+                        </h2>
+                        <div className={cn(
+                          "px-3 py-1 rounded-full text-sm font-bold flex items-center space-x-1",
+                          selectedQuestion.analysis.isCorrect ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                        )}>
+                          {selectedQuestion.analysis.isCorrect ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                          <span>{selectedQuestion.analysis.isCorrect ? '作答正确' : '作答错误/未作答'}</span>
                         </div>
                       </div>
+                      
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">题目内容</h3>
+                          <p className="text-gray-700 leading-relaxed">{selectedQuestion.analysis.questionText}</p>
+                        </div>
 
-                      <div>
-                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">出题意图</h3>
-                        <p className="text-gray-700">{selectedQuestion.analysis.examinerIntent}</p>
-                      </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">学生作答</h3>
+                          <p className="text-gray-700 italic">{selectedQuestion.analysis.studentAnswer || '无'}</p>
+                        </div>
 
-                      <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                        <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-2">掌握程度建议</h3>
-                        <p className="text-emerald-900">{selectedQuestion.analysis.masteryLevel}</p>
+                        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                          <h3 className="text-sm font-bold text-blue-600 uppercase tracking-wider mb-2">解题思路</h3>
+                          <p className="text-blue-900 leading-relaxed whitespace-pre-wrap">{selectedQuestion.analysis.solution}</p>
+                        </div>
+
+                        {!selectedQuestion.analysis.isCorrect && (
+                          <div className="p-4 bg-red-50 rounded-xl border border-red-100">
+                            <h3 className="text-sm font-bold text-red-600 uppercase tracking-wider mb-2">错误解析</h3>
+                            <p className="text-red-900 leading-relaxed">{selectedQuestion.analysis.errorAnalysis}</p>
+                          </div>
+                        )}
+
+                        <div>
+                          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">考察知识点</h3>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedQuestion.analysis.knowledgePoints.map(kp => (
+                              <span key={kp} className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm">{kp}</span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">出题意图</h3>
+                          <p className="text-gray-700">{selectedQuestion.analysis.examinerIntent}</p>
+                        </div>
+
+                        <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                          <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-2">掌握程度建议</h3>
+                          <p className="text-emerald-900">{selectedQuestion.analysis.masteryLevel}</p>
+                        </div>
                       </div>
-                    </div>
-                  </section>
+                    </section>
+                  </div>
+                </div>
+                
+                {/* Branding for Shared Image */}
+                <div className="text-center py-4 text-gray-400 text-xs">
+                  生成自「学霸错题本」AI 智能助手
                 </div>
               </div>
             </motion.div>
