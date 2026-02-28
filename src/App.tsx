@@ -136,16 +136,36 @@ export default function App() {
   };
 
   const handlePrint = () => {
+    if (!selectedQuestion) return;
     setIsShareSheetOpen(false);
+    
+    // Generate a descriptive filename for the print dialog
+    const subjectMap = {
+      'Chinese': '语文',
+      'Math': '数学',
+      'English': '英语',
+      'Physics': '物理'
+    };
+    const date = new Date(selectedQuestion.createdAt).toLocaleDateString('zh-CN').replace(/\//g, '-');
+    const tagsStr = selectedQuestion.tags.length > 0 ? `_${selectedQuestion.tags.join(',')}` : '';
+    const fileName = `[${subjectMap[selectedQuestion.subject]}]_${selectedQuestion.title}${tagsStr}_${date}`;
+    
+    const originalTitle = document.title;
+    document.title = fileName;
+
     // iOS Safari in standalone mode (WebApp) sometimes has issues with window.print()
     // but it's the most reliable way to get a PDF via "Save as PDF" in the print dialog.
     setTimeout(() => {
       window.print();
+      // Restore title after a delay to ensure print dialog picks it up
+      setTimeout(() => {
+        document.title = originalTitle;
+      }, 1000);
     }, 500);
   };
 
   const handleSharePDF = async () => {
-    if (!detailRef.current) return;
+    if (!detailRef.current || !selectedQuestion) return;
     
     try {
       setIsSharing(true);
@@ -153,6 +173,17 @@ export default function App() {
       
       const html2canvas = (await import('html2canvas')).default;
       const { jsPDF } = await import('jspdf');
+      
+      // Generate descriptive filename
+      const subjectMap = {
+        'Chinese': '语文',
+        'Math': '数学',
+        'English': '英语',
+        'Physics': '物理'
+      };
+      const date = new Date(selectedQuestion.createdAt).toLocaleDateString('zh-CN').replace(/\//g, '-');
+      const tagsStr = selectedQuestion.tags.length > 0 ? `_${selectedQuestion.tags.join(',')}` : '';
+      const fileName = `[${subjectMap[selectedQuestion.subject]}]_${selectedQuestion.title}${tagsStr}_${date}`;
       
       // Wait for any layout/image rendering
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -176,16 +207,16 @@ export default function App() {
       pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
       
       const pdfBlob = pdf.output('blob');
-      const file = new File([pdfBlob], `错题解析_${selectedQuestion?.title}.pdf`, { type: 'application/pdf' });
+      const file = new File([pdfBlob], `${fileName}.pdf`, { type: 'application/pdf' });
 
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: selectedQuestion?.title,
+          title: fileName,
           text: '来自学霸错题本的 PDF 分享',
         });
       } else {
-        pdf.save(`错题解析_${selectedQuestion?.title}.pdf`);
+        pdf.save(`${fileName}.pdf`);
       }
     } catch (error) {
       console.error('PDF export failed:', error);
@@ -196,13 +227,24 @@ export default function App() {
   };
 
   const handleShareImage = async () => {
-    if (!detailRef.current) return;
+    if (!detailRef.current || !selectedQuestion) return;
     
     try {
       setIsSharing(true);
       setIsShareSheetOpen(false);
       
       const html2canvas = (await import('html2canvas')).default;
+      
+      // Generate descriptive filename
+      const subjectMap = {
+        'Chinese': '语文',
+        'Math': '数学',
+        'English': '英语',
+        'Physics': '物理'
+      };
+      const date = new Date(selectedQuestion.createdAt).toLocaleDateString('zh-CN').replace(/\//g, '-');
+      const tagsStr = selectedQuestion.tags.length > 0 ? `_${selectedQuestion.tags.join(',')}` : '';
+      const fileName = `[${subjectMap[selectedQuestion.subject]}]_${selectedQuestion.title}${tagsStr}_${date}`;
       
       // Wait for any layout/image rendering
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -229,27 +271,25 @@ export default function App() {
           throw new Error('Canvas to Blob failed');
         }
 
-        const file = new File([blob], `错题解析_${selectedQuestion?.title}.png`, { type: 'image/png' });
+        const file = new File([blob], `${fileName}.png`, { type: 'image/png' });
 
         try {
           if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
               files: [file],
-              title: selectedQuestion?.title,
+              title: fileName,
               text: '来自学霸错题本的分享',
             });
           } else {
             // Fallback for browsers that don't support file sharing
             const dataUrl = canvas.toDataURL('image/png');
             const link = document.createElement('a');
-            link.download = `错题解析_${selectedQuestion?.title}.png`;
+            link.download = `${fileName}.png`;
             link.href = dataUrl;
             link.click();
           }
         } catch (shareError) {
           console.error('Share API failed:', shareError);
-          // If share fails (e.g. user cancelled), don't necessarily show an error alert
-          // unless it's a real failure.
         }
       }, 'image/png');
 
