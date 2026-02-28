@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { toPng } from 'html-to-image';
 import { 
   BookOpen, 
   Plus, 
@@ -140,6 +139,10 @@ export default function App() {
     
     try {
       setIsSharing(true);
+      
+      // Use dynamic import to help with some build environments
+      const { toPng } = await import('html-to-image');
+      
       // Wait a bit for any layout adjustments
       await new Promise(resolve => setTimeout(resolve, 100));
       
