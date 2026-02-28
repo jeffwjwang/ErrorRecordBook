@@ -1,0 +1,7 @@
+{
+  "name": "学霸错题本",
+  "description": "专为中学生设计的AI智能错题记录本，支持多学科分区、截图识别分析及知识点深度解析。",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
