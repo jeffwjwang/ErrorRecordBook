@@ -3,8 +3,7 @@ import { Send, ChevronLeft, Bot, User, Loader2, Sparkles, MessageSquare } from '
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI } from "@google/genai";
 import { WrongQuestion } from '../services/db';
-
-const ReactMarkdown = React.lazy(() => import('react-markdown'));
+import Markdown from 'markdown-to-jsx';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -137,9 +136,7 @@ export default function AIChat({ onBack, questions }: AIChatProps) {
                   : "bg-white text-gray-800 rounded-tl-none border border-gray-100"
               )}>
                 <div className="prose prose-sm max-w-none prose-p:leading-relaxed">
-                  <React.Suspense fallback={<div className="whitespace-pre-wrap">{m.content}</div>}>
-                    <ReactMarkdown>{m.content}</ReactMarkdown>
-                  </React.Suspense>
+                  <Markdown options={{ forceBlock: true }}>{m.content}</Markdown>
                 </div>
               </div>
             </div>
