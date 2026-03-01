@@ -31,6 +31,7 @@ import {
 } from './services/db';
 import { compressImage, fileToBase64 } from './services/image';
 import { analyzeQuestionImage, AIAnalysisResult } from './services/ai';
+import AIChat from './components/AIChat';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -46,10 +47,11 @@ const SUBJECTS: { id: Subject; name: string; color: string; icon: React.ReactNod
 ];
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'home' | 'subject' | 'upload' | 'detail' | 'settings'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'subject' | 'upload' | 'detail' | 'settings' | 'ai-chat'>('home');
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [questions, setQuestions] = useState<WrongQuestion[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<WrongQuestion | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,12 +60,21 @@ export default function App() {
   const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
+  const [allQuestionsForAI, setAllQuestionsForAI] = useState<WrongQuestion[]>([]);
 
   useEffect(() => {
     if (currentView === 'subject' && selectedSubject) {
       loadQuestions(selectedSubject);
     }
+    if (currentView === 'ai-chat') {
+      loadAllQuestions();
+    }
   }, [currentView, selectedSubject]);
+
+  const loadAllQuestions = async () => {
+    const data = await getAllQuestions();
+    setAllQuestionsForAI(data);
+  };
 
   const loadQuestions = async (subject: Subject) => {
     const data = await getQuestionsBySubject(subject);
@@ -301,15 +312,29 @@ export default function App() {
     }
   };
 
-  const filteredQuestions = questions.filter(q => 
-    q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    q.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredQuestions = questions.filter(q => {
+    const matchesSearch = q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      q.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesTag = !selectedTag || q.tags.includes(selectedTag);
+    return matchesSearch && matchesTag;
+  });
+
+  const allTags = Array.from(new Set(questions.flatMap(q => q.tags)));
 
   return (
     <div className="min-h-screen bg-[#F2F2F7] text-[#1C1C1E] font-sans selection:bg-blue-100 pb-safe">
-      {/* iOS Status Bar Background */}
-      <div className="fixed top-0 left-0 right-0 h-12 bg-[#F2F2F7]/80 backdrop-blur-md z-50 pointer-events-none" />
+      {/* AI Floating Button */}
+      {currentView !== 'ai-chat' && (
+        <button
+          onClick={() => setCurrentView('ai-chat')}
+          className="fixed bottom-24 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center z-50 active:scale-90 transition-transform"
+        >
+          <div className="relative">
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-blue-600 animate-pulse" />
+            <span className="font-bold text-xs">AI</span>
+          </div>
+        </button>
+      )}
 
       <main className="pt-12 px-4 pb-24 max-w-2xl mx-auto">
         <AnimatePresence mode="wait">
@@ -361,6 +386,21 @@ export default function App() {
             </motion.div>
           )}
 
+          {currentView === 'ai-chat' && (
+            <motion.div
+              key="ai-chat"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="h-full"
+            >
+              <AIChat 
+                onBack={() => setCurrentView('home')} 
+                questions={allQuestionsForAI} 
+              />
+            </motion.div>
+          )}
+
           {currentView === 'subject' && selectedSubject && (
             <motion.div 
               key="subject"
@@ -388,6 +428,33 @@ export default function App() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+
+              {allTags.length > 0 && (
+                <div className="flex items-center space-x-2 overflow-x-auto pb-2 scrollbar-hide">
+                  <button
+                    onClick={() => setSelectedTag(null)}
+                    className={cn(
+                      "px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
+                      !selectedTag ? "bg-blue-500 text-white" : "bg-white text-gray-600"
+                    )}
+                  >
+                    全部
+                  </button>
+                  {allTags.map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
+                      className={cn(
+                        "px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors flex items-center space-x-1",
+                        selectedTag === tag ? "bg-blue-500 text-white" : "bg-white text-gray-600"
+                      )}
+                    >
+                      <Tag className="w-3 h-3" />
+                      <span>{tag}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <div className="space-y-4">
                 {filteredQuestions.length > 0 ? (
@@ -753,7 +820,7 @@ export default function App() {
       {/* iOS Tab Bar Fallback (Optional, but good for PWA feel) */}
       {currentView !== 'home' && (
         <div className="fixed bottom-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-md border-t border-gray-100 flex items-center justify-around px-6 pb-safe z-40">
-          <button onClick={() => setCurrentView('home')} className={cn("flex flex-col items-center space-y-1", currentView === 'home' ? "text-blue-500" : "text-gray-400")}>
+          <button onClick={() => setCurrentView('home')} className="flex flex-col items-center space-y-1 text-gray-400">
             <BookOpen className="w-6 h-6" />
             <span className="text-[10px] font-medium">首页</span>
           </button>
