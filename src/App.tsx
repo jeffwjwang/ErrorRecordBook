@@ -49,13 +49,15 @@ const SUBJECTS: { id: Subject; name: string; color: string; icon: React.ReactNod
 ];
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'home' | 'subject' | 'upload' | 'detail' | 'settings' | 'ai-chat'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'subject' | 'upload' | 'detail' | 'settings' | 'ai-chat' | 'upload-preview'>('home');
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [questions, setQuestions] = useState<WrongQuestion[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<WrongQuestion | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [tempImage, setTempImage] = useState<string | null>(null);
+  const [userHint, setUserHint] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const detailRef = useRef<HTMLDivElement>(null);
@@ -91,20 +93,37 @@ export default function App() {
       setIsAnalyzing(true);
       const base64 = await fileToBase64(file);
       const compressed = await compressImage(base64);
-      
-      const analysis = await analyzeQuestionImage(compressed, selectedSubject);
+      setTempImage(compressed);
+      setUserHint('');
+      setCurrentView('upload-preview');
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert('上传失败，请重试');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const startAnalysis = async () => {
+    if (!tempImage || !selectedSubject) return;
+
+    try {
+      setIsAnalyzing(true);
+      const analysis = await analyzeQuestionImage(tempImage, selectedSubject, userHint);
       
       const newQuestion: WrongQuestion = {
         subject: selectedSubject,
         title: analysis.title,
         tags: analysis.tags,
-        image: compressed,
+        image: tempImage,
         analysis: analysis,
         createdAt: Date.now(),
       };
 
       await saveQuestion(newQuestion);
       await loadQuestions(selectedSubject);
+      setTempImage(null);
+      setUserHint('');
       setCurrentView('subject');
     } catch (error) {
       console.error('Analysis failed:', error);
@@ -456,6 +475,66 @@ export default function App() {
               >
                 <Plus className="w-8 h-8" />
               </button>
+            </motion.div>
+          )}
+
+          {currentView === 'upload-preview' && tempImage && (
+            <motion.div
+              key="upload-preview"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-6"
+            >
+              <header className="flex items-center justify-between sticky top-12 bg-[#F2F2F7]/80 backdrop-blur-md py-4 z-40">
+                <button onClick={() => {
+                  setTempImage(null);
+                  setCurrentView('subject');
+                }} className="p-2 -ml-2 text-blue-500 flex items-center font-medium">
+                  <ChevronLeft className="w-6 h-6" />
+                  取消
+                </button>
+                <h1 className="text-xl font-bold">补充信息</h1>
+                <div className="w-10" />
+              </header>
+
+              <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
+                <img src={tempImage} alt="预览" className="w-full h-auto max-h-[300px] object-contain bg-gray-50" referrerPolicy="no-referrer" />
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+                  <div className="flex items-center space-x-2 text-blue-600">
+                    <Sparkles className="w-5 h-5" />
+                    <h2 className="font-bold">告诉 AI 哪道题错了？</h2>
+                  </div>
+                  <textarea
+                    placeholder="例如：第29题错了，或者：这篇阅读理解的最后一题..."
+                    className="w-full h-32 bg-gray-50 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 resize-none"
+                    value={userHint}
+                    onChange={(e) => setUserHint(e.target.value)}
+                  />
+                  <p className="text-[10px] text-gray-400">补充提示能帮助 AI 更精准地定位题目，特别是当图片中包含多道题时。</p>
+                </div>
+
+                <button
+                  onClick={startAnalysis}
+                  disabled={isAnalyzing}
+                  className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-600/20 active:scale-[0.98] transition-all flex items-center justify-center space-x-2"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>正在深度分析...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5" />
+                      <span>开始 AI 深度分析</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </motion.div>
           )}
 
