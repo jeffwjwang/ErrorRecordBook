@@ -203,9 +203,6 @@ export default function App() {
       setIsSharing(true);
       setIsShareSheetOpen(false);
       
-      // Load html2canvas dynamically
-      const html2canvas = (await import('html2canvas')).default;
-      
       const subjectMap = {
         'Chinese': '语文',
         'Math': '数学',
@@ -216,21 +213,26 @@ export default function App() {
       const tagsStr = selectedQuestion.tags.length > 0 ? `_${selectedQuestion.tags.join(',')}` : '';
       const fileName = `[${subjectMap[selectedQuestion.subject]}]_${selectedQuestion.title}${tagsStr}_${date}`;
       
-      // Wait for Mermaid and other renders to be fully ready
+      // 等待 Mermaid 等异步渲染完成，避免截到半成品
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       const element = detailRef.current;
-      
-      // Create a canvas with optimized settings
+      if (!element) {
+        throw new Error('detail element not found');
+      }
+
+      // 优先使用 html2canvas 截图（对布局控制更细）
+      const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(element, {
         backgroundColor: '#F2F2F7',
-        scale: window.devicePixelRatio > 1 ? 1.5 : 2, // Adaptive scale for performance
+        // 移动端更保守一点，避免过大分辨率导致崩溃
+        scale: window.devicePixelRatio > 2 ? 1.5 : 2,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         logging: false,
         imageTimeout: 15000,
         scrollX: 0,
-        scrollY: -window.scrollY, // Adjust for current scroll position
+        scrollY: -window.scrollY,
         windowWidth: 430,
         onclone: (clonedDoc) => {
           const clonedElement = clonedDoc.getElementById('print-area');
@@ -239,7 +241,6 @@ export default function App() {
             clonedElement.style.height = 'auto';
             clonedElement.style.overflow = 'visible';
             clonedElement.style.borderRadius = '0';
-            // Ensure all images are loaded in the clone
             const images = clonedElement.getElementsByTagName('img');
             for (let i = 0; i < images.length; i++) {
               images[i].style.display = 'block';
@@ -248,22 +249,28 @@ export default function App() {
         }
       });
 
-      // Try to use Web Share API first
-      if (navigator.share && navigator.canShare) {
+      const downloadFromDataUrl = (dataUrl: string) => {
+        const link = document.createElement('a');
+        link.download = `${fileName}.png`;
+        link.href = dataUrl;
+        link.click();
+      };
+
+      const dataUrlFromCanvas = () => canvas.toDataURL('image/png');
+
+      // 优先使用 Web Share API（如果可用）
+      if (navigator.share && (navigator as any).canShare) {
         canvas.toBlob(async (blob) => {
           if (!blob) {
-            // Fallback if blob fails
-            const dataUrl = canvas.toDataURL('image/png');
-            const link = document.createElement('a');
-            link.download = `${fileName}.png`;
-            link.href = dataUrl;
-            link.click();
+            // 某些移动浏览器上 toBlob 可能返回 null，退回到直接下载
+            const dataUrl = dataUrlFromCanvas();
+            downloadFromDataUrl(dataUrl);
             return;
           }
 
           const file = new File([blob], `${fileName}.png`, { type: 'image/png' });
           
-          if (navigator.canShare({ files: [file] })) {
+          if ((navigator as any).canShare({ files: [file] })) {
             try {
               await navigator.share({
                 files: [file],
@@ -272,34 +279,53 @@ export default function App() {
               });
             } catch (shareError) {
               console.error('Share API failed:', shareError);
-              // Fallback to direct download
-              const dataUrl = canvas.toDataURL('image/png');
-              const link = document.createElement('a');
-              link.download = `${fileName}.png`;
-              link.href = dataUrl;
-              link.click();
+              const dataUrl = dataUrlFromCanvas();
+              downloadFromDataUrl(dataUrl);
             }
           } else {
-            // Fallback to direct download
-            const dataUrl = canvas.toDataURL('image/png');
-            const link = document.createElement('a');
-            link.download = `${fileName}.png`;
-            link.href = dataUrl;
-            link.click();
+            const dataUrl = dataUrlFromCanvas();
+            downloadFromDataUrl(dataUrl);
           }
         }, 'image/png');
       } else {
-        // Fallback for browsers without Share API
-        const dataUrl = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = `${fileName}.png`;
-        link.href = dataUrl;
-        link.click();
+        const dataUrl = dataUrlFromCanvas();
+        downloadFromDataUrl(dataUrl);
       }
 
     } catch (error) {
-      console.error('Capture failed:', error);
-      alert('生成分享图片失败，请尝试系统打印或截屏分享');
+      console.error('Capture failed, trying fallback with dom-to-image-more:', error);
+      // html2canvas 在部分移动端浏览器上不稳定，这里用 dom-to-image-more 兜底
+      try {
+        if (!detailRef.current || !selectedQuestion) throw error;
+        const element = detailRef.current;
+        const subjectMap = {
+          'Chinese': '语文',
+          'Math': '数学',
+          'English': '英语',
+          'Physics': '物理'
+        };
+        const date = new Date(selectedQuestion.createdAt).toLocaleDateString('zh-CN').replace(/\//g, '-');
+        const tagsStr = selectedQuestion.tags.length > 0 ? `_${selectedQuestion.tags.join(',')}` : '';
+        const fallbackFileName = `[${subjectMap[selectedQuestion.subject]}]_${selectedQuestion.title}${tagsStr}_${date}`;
+
+        const domtoimage = (await import('dom-to-image-more')).default;
+        const dataUrl = await domtoimage.toPng(element, {
+          bgcolor: '#F2F2F7',
+          quality: 1,
+          style: {
+            transform: 'scale(1)',
+            transformOrigin: 'top left',
+          },
+        });
+
+        const link = document.createElement('a');
+        link.download = `${fallbackFileName}.png`;
+        link.href = dataUrl;
+        link.click();
+      } catch (fallbackError) {
+        console.error('Fallback capture failed:', fallbackError);
+        alert('生成分享图片失败，请尝试系统打印或截屏分享');
+      }
     } finally {
       setIsSharing(false);
     }
