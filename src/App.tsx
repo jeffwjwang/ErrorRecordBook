@@ -48,7 +48,7 @@ const SUBJECTS: { id: Subject; name: string; color: string; icon: React.ReactNod
   { id: 'Physics', name: '物理', color: 'bg-emerald-500', icon: <div className="font-bold text-xl">Φ</div> },
 ];
 
-function buildShareHtml(question: WrongQuestion): string {
+function buildShareHtml(question: WrongQuestion, mermaidSvg?: string): string {
   const subjectMap: Record<WrongQuestion['subject'], string> = {
     Chinese: '语文',
     Math: '数学',
@@ -76,6 +76,8 @@ function buildShareHtml(question: WrongQuestion): string {
   const mermaidCode = question.analysis.logicEngine?.mermaidCode || '';
   const examinerIntent = question.analysis.logicEngine?.examinerIntent || '';
   const difficulty = question.analysis.logicEngine?.difficulty || 0;
+  const questionText = question.analysis.questionText || '';
+  const hasMermaidSvg = !!mermaidSvg;
 
   return `
   <div style="padding: 40px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif; background:#F2F2F7;">
@@ -273,6 +275,28 @@ function buildShareHtml(question: WrongQuestion): string {
       .difficulty-dot.on {
         background:#F59E0B;
       }
+      .error-root {
+        background:#EEF2FF;
+        border-color:rgba(129,140,248,0.4);
+      }
+      .error-root-header {
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        margin-bottom:8px;
+      }
+      .error-pill {
+        display:inline-flex;
+        align-items:center;
+        padding:2px 8px;
+        border-radius:999px;
+        font-size:10px;
+        font-weight:700;
+        background:#4F46E5;
+        color:white;
+        text-transform:uppercase;
+        letter-spacing:.12em;
+      }
     </style>
     <div class="card-root">
       <div class="badge">学霸错题本 · ${subjectMap[question.subject]}</div>
@@ -285,6 +309,12 @@ function buildShareHtml(question: WrongQuestion): string {
       <div class="image-wrap">
         <img src="${question.image}" alt="question" />
       </div>
+
+      ${questionText ? `
+      <div class="section">
+        <div class="section-label">题目还原</div>
+        <div class="analysis">${questionText}</div>
+      </div>` : ''}
 
       <div class="section">
         <div class="section-label">核心知识点</div>
@@ -329,19 +359,33 @@ function buildShareHtml(question: WrongQuestion): string {
         ${solution ? `<div class="analysis" style="margin-top:10px;">解题步骤：${solution}</div>` : ''}
       </div>` : ''}
 
-      ${mermaidCode ? `
+      ${hasMermaidSvg ? `
+      <div class="section">
+        <div class="section-label">解题路径（逻辑流程图）</div>
+        <div style="width:100%;overflow:hidden;">
+          ${mermaidSvg}
+        </div>
+      </div>` : (mermaidCode ? `
       <div class="section">
         <div class="section-label">解题路径（逻辑流程图）</div>
         <div style="font-size:12px;color:#6B7280;margin-bottom:6px;">以下为 Mermaid 语法的逻辑结构，可在支持 Mermaid 的工具中渲染为流程图：</div>
         <div class="mono-box">${mermaidCode}</div>
+      </div>` : '')}
+
+      ${errorReason ? `
+      <div class="section error-root">
+        <div class="error-root-header">
+          <div class="section-label" style="margin-bottom:0;">错误根源剖析</div>
+          <div class="error-pill">${errorCategory}</div>
+        </div>
+        <div class="analysis">${errorReason}</div>
       </div>` : ''}
 
-      ${(gapAnalysis || errorReason || masteryLevel) ? `
+      ${(gapAnalysis || masteryLevel) ? `
       <div class="section">
-        <div class="section-label">错误剖析与掌握建议</div>
+        <div class="section-label">掌握建议</div>
         ${gapAnalysis ? `<div class="analysis">认知差异：${gapAnalysis}</div>` : ''}
-        ${errorReason ? `<div class="analysis" style="margin-top:8px;">错误根源（${errorCategory}）：${errorReason}</div>` : ''}
-        ${masteryLevel ? `<div class="analysis" style="margin-top:8px;">掌握建议：${masteryLevel}</div>` : ''}
+        ${masteryLevel ? `<div class="analysis" style="margin-top:8px;">${masteryLevel}</div>` : ''}
       </div>` : ''}
 
       ${variationQuestion ? `
@@ -511,6 +555,15 @@ export default function App() {
       setIsSharing(true);
       setIsShareSheetOpen(false);
 
+      // 从当前详情页中读取已经渲染好的 Mermaid SVG（如果存在）
+      let mermaidSvg: string | undefined;
+      if (detailRef.current) {
+        const mermaidContainer = detailRef.current.querySelector<HTMLDivElement>('.mermaid-container');
+        if (mermaidContainer && mermaidContainer.innerHTML.trim()) {
+          mermaidSvg = mermaidContainer.innerHTML;
+        }
+      }
+
       // 离屏构建“分享海报”DOM，避免直接截真实页面造成兼容/性能问题
       const container = document.createElement('div');
       container.style.position = 'absolute';
@@ -518,7 +571,7 @@ export default function App() {
       container.style.top = '0';
       container.style.width = '820px';
       container.style.background = '#F2F2F7';
-      container.innerHTML = buildShareHtml(selectedQuestion);
+      container.innerHTML = buildShareHtml(selectedQuestion, mermaidSvg);
       document.body.appendChild(container);
 
       // 等待图片 / 字体加载
