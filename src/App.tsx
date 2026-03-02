@@ -177,68 +177,6 @@ export default function App() {
     }, 500);
   };
 
-  const handleSharePDF = async () => {
-    if (!detailRef.current || !selectedQuestion) return;
-    
-    try {
-      setIsSharing(true);
-      setIsShareSheetOpen(false);
-      
-      const html2canvas = (await import('html2canvas')).default;
-      const { jsPDF } = await import('jspdf');
-      
-      const subjectMap = {
-        'Chinese': '语文',
-        'Math': '数学',
-        'English': '英语',
-        'Physics': '物理'
-      };
-      const date = new Date(selectedQuestion.createdAt).toLocaleDateString('zh-CN').replace(/\//g, '-');
-      const tagsStr = selectedQuestion.tags.length > 0 ? `_${selectedQuestion.tags.join(',')}` : '';
-      const fileName = `[${subjectMap[selectedQuestion.subject]}]_${selectedQuestion.title}${tagsStr}_${date}`;
-      
-      // Wait for Mermaid and other renders
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const element = detailRef.current;
-      const canvas = await html2canvas(element, {
-        backgroundColor: '#FFFFFF',
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-      });
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const imgWidth = 595.28; // A4 width in pts
-      const pageHeight = 841.89; // A4 height in pts
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      
-      const pdf = new jsPDF('p', 'pt', 'a4');
-      let position = 0;
-
-      // Add first page
-      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      // Add subsequent pages if needed
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      pdf.save(`${fileName}.pdf`);
-    } catch (error) {
-      console.error('PDF export failed:', error);
-      alert('生成 PDF 失败，请尝试系统打印');
-    } finally {
-      setIsSharing(false);
-    }
-  };
-
   const handleShareImage = async () => {
     if (!detailRef.current || !selectedQuestion) return;
     
@@ -259,26 +197,29 @@ export default function App() {
       const tagsStr = selectedQuestion.tags.length > 0 ? `_${selectedQuestion.tags.join(',')}` : '';
       const fileName = `[${subjectMap[selectedQuestion.subject]}]_${selectedQuestion.title}${tagsStr}_${date}`;
       
-      // Wait for any layout/image rendering
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait longer for Mermaid and other renders to be fully ready
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      const canvas = await html2canvas(detailRef.current, {
+      const element = detailRef.current;
+      const canvas = await html2canvas(element, {
         backgroundColor: '#F2F2F7',
-        scale: 1.5, // Slightly lower scale for mobile memory stability
+        scale: 2, // Higher scale for better quality
         useCORS: true,
         allowTaint: true,
         logging: false,
         imageTimeout: 0,
+        windowWidth: 430, // Force mobile width for capture
         onclone: (clonedDoc) => {
-          // Ensure the cloned element is visible and has correct dimensions
-          const element = clonedDoc.querySelector('[ref="detailRef"]') as HTMLElement;
-          if (element) {
-            element.style.borderRadius = '0';
+          const clonedElement = clonedDoc.getElementById('print-area');
+          if (clonedElement) {
+            clonedElement.style.width = '430px';
+            clonedElement.style.margin = '0';
+            clonedElement.style.padding = '20px';
+            clonedElement.style.borderRadius = '0';
           }
         }
       });
 
-      // Use toBlob instead of toDataURL + fetch for better mobile stability
       canvas.toBlob(async (blob) => {
         if (!blob) {
           throw new Error('Canvas to Blob failed');
@@ -294,7 +235,6 @@ export default function App() {
               text: '来自学霸错题本的分享',
             });
           } else {
-            // Fallback for browsers that don't support file sharing
             const dataUrl = canvas.toDataURL('image/png');
             const link = document.createElement('a');
             link.download = `${fileName}.png`;
@@ -303,12 +243,18 @@ export default function App() {
           }
         } catch (shareError) {
           console.error('Share API failed:', shareError);
+          // Fallback to download
+          const dataUrl = canvas.toDataURL('image/png');
+          const link = document.createElement('a');
+          link.download = `${fileName}.png`;
+          link.href = dataUrl;
+          link.click();
         }
       }, 'image/png');
 
     } catch (error) {
       console.error('Capture failed:', error);
-      alert('生成分享图片失败，请尝试 PDF 导出或截屏分享');
+      alert('生成分享图片失败，请尝试系统打印或截屏分享');
     } finally {
       setIsSharing(false);
     }
@@ -848,21 +794,14 @@ export default function App() {
                     className="w-full py-4 text-center text-blue-500 font-medium active:bg-gray-100 flex items-center justify-center space-x-2"
                   >
                     <ImageIcon className="w-5 h-5" />
-                    <span>分享为图片</span>
-                  </button>
-                  <button 
-                    onClick={handleSharePDF}
-                    className="w-full py-4 text-center text-blue-500 font-medium active:bg-gray-100 flex items-center justify-center space-x-2"
-                  >
-                    <Download className="w-5 h-5" />
-                    <span>分享为 PDF (Canvas)</span>
+                    <span>分享为长图片 (推荐)</span>
                   </button>
                   <button 
                     onClick={handlePrint}
                     className="w-full py-4 text-center text-blue-500 font-medium active:bg-gray-100 flex items-center justify-center space-x-2"
                   >
                     <Share className="w-5 h-5" />
-                    <span>打印 / 另存为 PDF (推荐)</span>
+                    <span>打印 / 另存为 PDF</span>
                   </button>
                 </div>
                 <button 
