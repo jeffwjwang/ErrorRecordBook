@@ -41,8 +41,11 @@ export async function analyzeQuestionImage(base64Image: string, subject: string)
 2. 深度解读出题人意图：拆解题目设计逻辑，说明如何隐含求解条件或通过多步推理设置障碍。
 3. 错误根源分析：必须从以下类别中选择最贴切的一个：Careless (粗心), FormulaError (公式记错), ConceptConfused (概念混淆), LogicGap (逻辑断层), KnowledgeBlind (知识盲区), TimePressure (时间压力)。
 4. 知识图谱：识别核心知识点 (primaryPoint) 和关联知识点 (relatedPoints)。
-5. 逻辑可视化 (强制)：
-   - 必须输出 mermaid.js 代码。如果是逻辑推导或证明，使用 flowchart TD；如果是知识关联，使用 mindmap。
+5. 逻辑解题路径 (强制)：
+   - 必须输出 mermaid.js 代码。该图表必须完整、逐步地展示解题的逻辑路径。
+   - 如果是逻辑推导或证明，使用 flowchart TD，每个节点代表一个解题步骤。
+   - 如果是知识关联，使用 mindmap。
+   - 确保图表逻辑清晰，能够替代传统的纯文本步骤描述。
 6. 创意草图 (可选)：如果是几何题，输出 Excalidraw JSON。
 7. 答案对比：清晰提取学生答案与标准答案，并分析差异。
 8. 同类变式：生成一道练习题（含答案）。
