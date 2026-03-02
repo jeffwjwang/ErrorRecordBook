@@ -72,6 +72,10 @@ function buildShareHtml(question: WrongQuestion): string {
   const errorReason = question.analysis.errorRoot?.detailedReason || '';
   const masteryLevel = question.analysis.masteryLevel || '';
   const variationQuestion = question.analysis.variationQuestion || '';
+  const solution = question.analysis.solution || '';
+  const mermaidCode = question.analysis.logicEngine?.mermaidCode || '';
+  const examinerIntent = question.analysis.logicEngine?.examinerIntent || '';
+  const difficulty = question.analysis.logicEngine?.difficulty || 0;
 
   return `
   <div style="padding: 40px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif; background:#F2F2F7;">
@@ -217,6 +221,58 @@ function buildShareHtml(question: WrongQuestion): string {
         line-height:1.7;
         white-space:pre-wrap;
       }
+      .quote-section {
+        margin-top:24px;
+        padding:24px 22px;
+        border-radius:24px;
+        background:#ECFDF5;
+        border:1px solid rgba(16,185,129,0.3);
+        position:relative;
+      }
+      .quote-section::before {
+        content:"“";
+        position:absolute;
+        top:10px;
+        left:18px;
+        font-size:40px;
+        color:rgba(16,185,129,0.25);
+        font-weight:700;
+      }
+      .quote-text {
+        margin-left:12px;
+        font-size:18px;
+        font-weight:600;
+        color:#064E3B;
+        line-height:1.7;
+        white-space:pre-wrap;
+      }
+      .mono-box {
+        margin-top:12px;
+        padding:14px 16px;
+        border-radius:16px;
+        background:#111827;
+        color:#E5E7EB;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size:11px;
+        line-height:1.6;
+        white-space:pre-wrap;
+        max-height:260px;
+        overflow:auto;
+      }
+      .difficulty-dots {
+        display:flex;
+        gap:4px;
+        margin-top:6px;
+      }
+      .difficulty-dot {
+        width:8px;
+        height:8px;
+        border-radius:999px;
+        background:#E5E7EB;
+      }
+      .difficulty-dot.on {
+        background:#F59E0B;
+      }
     </style>
     <div class="card-root">
       <div class="badge">学霸错题本 · ${subjectMap[question.subject]}</div>
@@ -238,6 +294,14 @@ function buildShareHtml(question: WrongQuestion): string {
         </div>
       </div>
 
+      ${(gapAnalysis || examinerIntent) ? `
+      <div class="quote-section">
+        <div class="section-label" style="margin-top:0;margin-bottom:6px;color:#A7F3D0;">核心洞察</div>
+        <div class="quote-text">
+          ${gapAnalysis || primaryPoint}
+        </div>
+      </div>` : ''}
+
       <div class="section">
         <div class="qa-row">
           <div class="qa-col">
@@ -250,6 +314,27 @@ function buildShareHtml(question: WrongQuestion): string {
           </div>
         </div>
       </div>
+
+      ${(examinerIntent || difficulty || solution) ? `
+      <div class="section">
+        <div class="section-label">解题思路与命题意图</div>
+        ${examinerIntent ? `<div class="analysis">出题人意图：${examinerIntent}</div>` : ''}
+        ${difficulty ? `
+          <div style="margin-top:8px;font-size:12px;color:#6B7280;">
+            难度评估：
+            <div class="difficulty-dots">
+              ${[1,2,3,4,5].map(i => `<div class="difficulty-dot ${i <= difficulty ? 'on' : ''}"></div>`).join('')}
+            </div>
+          </div>` : ''}
+        ${solution ? `<div class="analysis" style="margin-top:10px;">解题步骤：${solution}</div>` : ''}
+      </div>` : ''}
+
+      ${mermaidCode ? `
+      <div class="section">
+        <div class="section-label">解题路径（逻辑流程图）</div>
+        <div style="font-size:12px;color:#6B7280;margin-bottom:6px;">以下为 Mermaid 语法的逻辑结构，可在支持 Mermaid 的工具中渲染为流程图：</div>
+        <div class="mono-box">${mermaidCode}</div>
+      </div>` : ''}
 
       ${(gapAnalysis || errorReason || masteryLevel) ? `
       <div class="section">
