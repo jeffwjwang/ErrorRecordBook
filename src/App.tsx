@@ -469,9 +469,14 @@ export default function App() {
       }
 
       for (const analysis of analyses) {
+        const autoTitle =
+          (analysis.knowledgeMap && analysis.knowledgeMap.primaryPoint) ||
+          (analysis.tags && analysis.tags[0]) ||
+          analysis.title;
+
         const newQuestion: WrongQuestion = {
           subject: selectedSubject,
-          title: analysis.title,
+          title: autoTitle || '未命名错题',
           tags: analysis.tags,
           image: tempImage,
           analysis,
