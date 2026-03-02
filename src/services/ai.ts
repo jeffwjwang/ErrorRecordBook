@@ -31,6 +31,19 @@ export interface AIAnalysisResult {
   variationQuestion?: string;
 }
 
+function sanitizeMermaid(code: string | undefined): string {
+  if (!code) return '';
+  let cleaned = code.trim();
+  // 去掉可能出现的 ```mermaid ``` 代码块包裹
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned
+      .replace(/```mermaid/i, '')
+      .replace(/```/g, '')
+      .trim();
+  }
+  return cleaned;
+}
+
 export async function analyzeQuestionImage(base64Image: string, subject: string, userHint?: string): Promise<AIAnalysisResult[]> {
   const model = "gemini-3-flash-preview";
   const targetNumbers = userHint ? userHint.match(/\d+/g)?.map(n => parseInt(n, 10)).filter(n => !Number.isNaN(n)) : undefined;
@@ -49,6 +62,7 @@ ${targetNumbers && targetNumbers.length > 0 ? `本次只需要分析题目前的
 2. 深度解读出题人意图：拆解题目设计逻辑，说明如何隐含求解条件或通过多步推理设置障碍。
 3. 错误根源分析：必须从以下类别中选择最贴切的一个：Careless (粗心), FormulaError (公式记错), ConceptConfused (概念混淆), LogicGap (逻辑断层), KnowledgeBlind (知识盲区), TimePressure (时间压力)。
 4. 知识图谱：识别核心知识点 (primaryPoint) 和关联知识点 (relatedPoints)。
+5. 题目标题 title：请用极短的一句话概括这道错题的本质类型（例如："一般现在时被动语态填空"、"介词短语 in the old days 用法"），禁止直接复制整题内容。
 5. 逻辑解题路径 (强制)：
    - 必须输出 mermaid.js 代码。该图表必须完整、逐步地展示解题的逻辑路径。
    - 如果是逻辑推导或证明，使用 flowchart TD，每个节点代表一个解题步骤。
@@ -131,11 +145,16 @@ ${targetNumbers && targetNumbers.length > 0 ? `本次只需要分析题目前的
 
   const parsed = JSON.parse(response.text || '[]');
   // 兼容模型偶尔返回单个对象而不是数组的情况
-  if (Array.isArray(parsed)) {
-    return parsed as AIAnalysisResult[];
-  }
-  if (parsed && typeof parsed === 'object') {
-    return [parsed as AIAnalysisResult];
-  }
-  return [];
+  const analyses: AIAnalysisResult[] = Array.isArray(parsed)
+    ? parsed
+    : (parsed && typeof parsed === 'object' ? [parsed] : []);
+
+  // 清洗 mermaid 代码，避免因为包裹在代码块中导致渲染失败
+  return analyses.map((item) => ({
+    ...item,
+    logicEngine: {
+      ...item.logicEngine,
+      mermaidCode: sanitizeMermaid(item.logicEngine?.mermaidCode),
+    },
+  }));
 }
