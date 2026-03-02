@@ -1,7 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Icons", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: "Noto Serif SC", serif;
+  --font-display: "Playfair Display", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-emerald-500: #10b981;
+  --color-violet-500: #8b5cf6;
 }
 
 @layer base {
@@ -12,9 +18,45 @@
   }
   
   body {
-    @apply antialiased;
+    @apply antialiased font-sans;
     background-color: #F2F2F7;
   }
+  
+  h1, h2, h3, .font-display {
+    @apply font-display;
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-[#F2F2F7];
+  }
+  
+  main {
+    @apply bg-white min-h-screen shadow-2xl border-x border-gray-200/50;
+  }
+}
+
+.line-guidance {
+  position: relative;
+}
+
+.line-guidance::before {
+  content: '';
+  position: absolute;
+  left: 1.5rem;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  @apply bg-gray-200;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Print Styles */

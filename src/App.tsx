@@ -15,7 +15,8 @@ import {
   Tag,
   Calendar,
   Share,
-  Share2
+  Share2,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -32,6 +33,7 @@ import {
 import { compressImage, fileToBase64 } from './services/image';
 import { analyzeQuestionImage, AIAnalysisResult } from './services/ai';
 import AIChat from './components/AIChat';
+import MermaidRenderer from './components/MermaidRenderer';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -185,7 +187,6 @@ export default function App() {
       const html2canvas = (await import('html2canvas')).default;
       const { jsPDF } = await import('jspdf');
       
-      // Generate descriptive filename
       const subjectMap = {
         'Chinese': '语文',
         'Math': '数学',
@@ -196,42 +197,43 @@ export default function App() {
       const tagsStr = selectedQuestion.tags.length > 0 ? `_${selectedQuestion.tags.join(',')}` : '';
       const fileName = `[${subjectMap[selectedQuestion.subject]}]_${selectedQuestion.title}${tagsStr}_${date}`;
       
-      // Wait for any layout/image rendering
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait for Mermaid and other renders
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const canvas = await html2canvas(detailRef.current, {
+      const element = detailRef.current;
+      const canvas = await html2canvas(element, {
         backgroundColor: '#FFFFFF',
-        scale: 1.5,
+        scale: 2,
         useCORS: true,
         allowTaint: true,
         logging: false,
-        imageTimeout: 0
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.8);
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'px',
-        format: [canvas.width, canvas.height]
-      });
-
-      pdf.addImage(imgData, 'JPEG', 0, 0, canvas.width, canvas.height);
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const imgWidth = 595.28; // A4 width in pts
+      const pageHeight = 841.89; // A4 height in pts
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
       
-      const pdfBlob = pdf.output('blob');
-      const file = new File([pdfBlob], `${fileName}.pdf`, { type: 'application/pdf' });
+      const pdf = new jsPDF('p', 'pt', 'a4');
+      let position = 0;
 
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: fileName,
-          text: '来自学霸错题本的 PDF 分享',
-        });
-      } else {
-        pdf.save(`${fileName}.pdf`);
+      // Add first page
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Add subsequent pages if needed
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
       }
+
+      pdf.save(`${fileName}.pdf`);
     } catch (error) {
       console.error('PDF export failed:', error);
-      alert('生成 PDF 失败，请尝试截屏分享');
+      alert('生成 PDF 失败，请尝试系统打印');
     } finally {
       setIsSharing(false);
     }
@@ -336,7 +338,7 @@ export default function App() {
         </button>
       )}
 
-      <main className="pt-12 px-4 pb-24 max-w-2xl mx-auto">
+      <main className="pt-12 px-4 pb-24 max-w-[430px] mx-auto">
         <AnimatePresence mode="wait">
           {currentView === 'home' && (
             <motion.div 
@@ -472,8 +474,11 @@ export default function App() {
                       </div>
                       <div className="flex-1 min-w-0 py-1">
                         <h3 className="font-bold text-lg truncate">{q.title}</h3>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {q.tags.slice(0, 2).map(tag => (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          <span className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full font-bold">
+                            {q.analysis.knowledgeMap?.primaryPoint || '未分类'}
+                          </span>
+                          {q.tags.slice(0, 1).map(tag => (
                             <span key={tag} className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">#{tag}</span>
                           ))}
                         </div>
@@ -521,7 +526,7 @@ export default function App() {
                   <ChevronLeft className="w-6 h-6" />
                   列表
                 </button>
-                <h1 className="text-xl font-bold truncate max-w-[150px]">{selectedQuestion.title}</h1>
+                <h1 className="text-xl font-display font-bold truncate max-w-[150px]">{selectedQuestion.title}</h1>
                 <div className="flex items-center">
                   <button 
                     onClick={() => setIsShareSheetOpen(true)}
@@ -539,77 +544,153 @@ export default function App() {
                 </div>
               </header>
 
-              <div ref={detailRef} id="print-area" className="space-y-6 p-1">
-                <div className="bg-white rounded-3xl overflow-hidden shadow-sm">
-                  <img src={selectedQuestion.image} alt="题目" className="w-full h-auto" referrerPolicy="no-referrer" />
-                </div>
+              <div ref={detailRef} id="print-area" className="space-y-8 pb-12">
+                {/* Bento Grid Header */}
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="col-span-4 bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
+                    <img src={selectedQuestion.image} alt="题目" className="w-full h-auto" referrerPolicy="no-referrer" />
+                  </div>
+                  
+                  {/* Knowledge Points Block */}
+                  <div className="col-span-4 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-2">
+                    <span className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">核心知识点</span>
+                    <div className="flex flex-wrap gap-2">
+                      <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-sm font-bold border border-blue-100">
+                        {selectedQuestion.analysis.knowledgeMap.primaryPoint}
+                      </span>
+                      {selectedQuestion.analysis.knowledgeMap.relatedPoints.map(kp => (
+                        <span key={kp} className="px-3 py-1 bg-gray-50 text-gray-500 rounded-lg text-sm border border-gray-100">
+                          {kp}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Comparison Block */}
+                  <div className="col-span-2 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col space-y-2">
+                    <span className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">我的答案</span>
+                    <div className="text-red-500 font-bold text-sm break-words line-clamp-3">
+                      {selectedQuestion.analysis.comparison.studentAnswer || '无'}
+                    </div>
+                  </div>
+                  
+                  <div className="col-span-2 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col space-y-2">
+                    <span className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">标准答案</span>
+                    <div className="text-emerald-600 font-bold text-sm break-words line-clamp-3">
+                      {selectedQuestion.analysis.comparison.standardAnswer}
+                    </div>
+                  </div>
 
-                <div className="space-y-4">
-                  <div className="bg-white rounded-2xl p-6 shadow-sm space-y-6">
-                    <section>
-                      <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-lg font-bold flex items-center">
-                          <Tag className="w-5 h-5 mr-2 text-blue-500" />
-                          分析结果
-                        </h2>
-                        <div className={cn(
-                          "px-3 py-1 rounded-full text-sm font-bold flex items-center space-x-1",
-                          selectedQuestion.analysis.isCorrect ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-                        )}>
-                          {selectedQuestion.analysis.isCorrect ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                          <span>{selectedQuestion.analysis.isCorrect ? '作答正确' : '作答错误/未作答'}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-6">
-                        <div>
-                          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">题目内容</h3>
-                          <p className="text-gray-700 leading-relaxed">{selectedQuestion.analysis.questionText}</p>
-                        </div>
+                  {/* Difficulty & Status */}
+                  <div className="col-span-2 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col justify-center items-center space-y-1">
+                    <span className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">难度</span>
+                    <div className="flex text-amber-400">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Sparkles key={i} className={cn("w-3 h-3", i < (selectedQuestion.analysis.logicEngine.difficulty || 3) ? "fill-current" : "text-gray-200")} />
+                      ))}
+                    </div>
+                  </div>
 
-                        <div>
-                          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">学生作答</h3>
-                          <p className="text-gray-700 italic">{selectedQuestion.analysis.studentAnswer || '无'}</p>
-                        </div>
-
-                        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                          <h3 className="text-sm font-bold text-blue-600 uppercase tracking-wider mb-2">解题思路</h3>
-                          <p className="text-blue-900 leading-relaxed whitespace-pre-wrap">{selectedQuestion.analysis.solution}</p>
-                        </div>
-
-                        {!selectedQuestion.analysis.isCorrect && (
-                          <div className="p-4 bg-red-50 rounded-xl border border-red-100">
-                            <h3 className="text-sm font-bold text-red-600 uppercase tracking-wider mb-2">错误解析</h3>
-                            <p className="text-red-900 leading-relaxed">{selectedQuestion.analysis.errorAnalysis}</p>
-                          </div>
-                        )}
-
-                        <div>
-                          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">考察知识点</h3>
-                          <div className="flex flex-wrap gap-2">
-                            {selectedQuestion.analysis.knowledgePoints.map(kp => (
-                              <span key={kp} className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-sm">{kp}</span>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div>
-                          <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">出题意图</h3>
-                          <p className="text-gray-700">{selectedQuestion.analysis.examinerIntent}</p>
-                        </div>
-
-                        <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100">
-                          <h3 className="text-sm font-bold text-emerald-600 uppercase tracking-wider mb-2">掌握程度建议</h3>
-                          <p className="text-emerald-900">{selectedQuestion.analysis.masteryLevel}</p>
-                        </div>
-                      </div>
-                    </section>
+                  <div className="col-span-2 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-center space-x-2">
+                    <div className={cn(
+                      "w-8 h-8 rounded-lg flex items-center justify-center",
+                      selectedQuestion.analysis.isCorrect ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"
+                    )}>
+                      {selectedQuestion.analysis.isCorrect ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+                    </div>
+                    <span className="font-bold text-sm">{selectedQuestion.analysis.isCorrect ? '已掌握' : '待攻克'}</span>
                   </div>
                 </div>
-                
-                {/* Branding for Shared Image */}
-                <div className="text-center py-4 text-gray-400 text-xs">
-                  生成自「学霸错题本」AI 智能助手
+
+                {/* Main Content with Line Guidance */}
+                <div className="space-y-8">
+                  {/* Core Insight - Emerald Highlight */}
+                  <div className="bg-emerald-500 rounded-3xl p-6 text-white shadow-lg shadow-emerald-500/20 relative overflow-hidden">
+                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
+                    <h2 className="text-sm font-bold uppercase tracking-widest mb-3 opacity-80">核心洞察</h2>
+                    <p className="text-xl font-display font-medium leading-relaxed italic">
+                      “{selectedQuestion.analysis.comparison.gapAnalysis}”
+                    </p>
+                  </div>
+
+                  {/* Logical Visualization */}
+                  <div className="space-y-3">
+                    <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest px-2">逻辑推演</h2>
+                    <MermaidRenderer chart={selectedQuestion.analysis.logicEngine.mermaidCode} />
+                  </div>
+
+                  {/* Step by Step Analysis - Line Guidance */}
+                  <div className="space-y-6 line-guidance px-2">
+                    <div className="relative pl-10">
+                      <div className="absolute left-0 top-0 w-8 h-8 bg-white rounded-full border-2 border-blue-500 flex items-center justify-center z-10 shadow-sm">
+                        <span className="text-xs font-bold text-blue-600">01</span>
+                      </div>
+                      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">题目还原</h3>
+                      <p className="text-gray-700 leading-relaxed font-serif">{selectedQuestion.analysis.questionText}</p>
+                    </div>
+
+                    <div className="relative pl-10">
+                      <div className="absolute left-0 top-0 w-8 h-8 bg-white rounded-full border-2 border-blue-500 flex items-center justify-center z-10 shadow-sm">
+                        <span className="text-xs font-bold text-blue-600">02</span>
+                      </div>
+                      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">出题人意图</h3>
+                      <p className="text-gray-700 leading-relaxed">{selectedQuestion.analysis.logicEngine.examinerIntent}</p>
+                    </div>
+
+                    <div className="relative pl-10">
+                      <div className="absolute left-0 top-0 w-8 h-8 bg-white rounded-full border-2 border-blue-500 flex items-center justify-center z-10 shadow-sm">
+                        <span className="text-xs font-bold text-blue-600">03</span>
+                      </div>
+                      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">解题路径</h3>
+                      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                        <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{selectedQuestion.analysis.solution}</p>
+                      </div>
+                    </div>
+
+                    {/* Error Root - Violet Highlight */}
+                    <div className="relative pl-10">
+                      <div className="absolute left-0 top-0 w-8 h-8 bg-violet-500 rounded-full flex items-center justify-center z-10 shadow-lg shadow-violet-500/30">
+                        <XCircle className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="bg-violet-500 rounded-2xl p-5 text-white shadow-xl shadow-violet-500/20">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-xs font-bold uppercase tracking-widest opacity-80">错误根源剖析</h3>
+                          <span className="px-2 py-0.5 bg-white/20 rounded text-[10px] font-bold">
+                            {selectedQuestion.analysis.errorRoot.category}
+                          </span>
+                        </div>
+                        <p className="font-medium">{selectedQuestion.analysis.errorRoot.detailedReason}</p>
+                      </div>
+                    </div>
+
+                    <div className="relative pl-10">
+                      <div className="absolute left-0 top-0 w-8 h-8 bg-white rounded-full border-2 border-emerald-500 flex items-center justify-center z-10 shadow-sm">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                      </div>
+                      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">掌握建议</h3>
+                      <p className="text-emerald-700 font-medium">{selectedQuestion.analysis.masteryLevel}</p>
+                    </div>
+                  </div>
+
+                  {/* Variation Test */}
+                  {selectedQuestion.analysis.variationQuestion && (
+                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 space-y-4">
+                      <div className="flex items-center space-x-2 text-blue-600">
+                        <Sparkles className="w-5 h-5" />
+                        <h2 className="font-bold">同类变式练习</h2>
+                      </div>
+                      <div className="p-4 bg-gray-50 rounded-2xl text-gray-700 font-serif leading-relaxed">
+                        {selectedQuestion.analysis.variationQuestion}
+                      </div>
+                      <p className="text-[10px] text-center text-gray-300 italic">尝试独立完成这道题，验证你的掌握程度</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer Branding */}
+                <div className="text-center pt-8">
+                  <div className="font-display text-2xl font-black text-gray-200 tracking-tighter">ERROR RECORD BOOK</div>
+                  <div className="text-[10px] text-gray-300 uppercase tracking-[0.3em] mt-1">AI Powered Learning Assistant</div>
                 </div>
               </div>
             </motion.div>
