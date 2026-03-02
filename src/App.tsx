@@ -48,6 +48,16 @@ const SUBJECTS: { id: Subject; name: string; color: string; icon: React.ReactNod
   { id: 'Physics', name: '物理', color: 'bg-emerald-500', icon: <div className="font-bold text-xl">Φ</div> },
 ];
 
+const HOME_QUOTES: string[] = [
+  '记录每一次进步',
+  '错题不是失败，而是通往学霸的路标',
+  '今天多看一眼，考场少错一题',
+  '把不会的题变成拿手题',
+  '真正的学霸，敢于直面每一道错题',
+  '错题本写得有多细，进步就有多快',
+  '每一道错题，都是下一次满分的伏笔',
+];
+
 function buildShareHtml(question: WrongQuestion, mermaidSvg?: string): string {
   const subjectMap: Record<WrongQuestion['subject'], string> = {
     Chinese: '语文',
@@ -417,8 +427,13 @@ export default function App() {
   const [isSharing, setIsSharing] = useState(false);
   const [isShareSheetOpen, setIsShareSheetOpen] = useState(false);
   const [allQuestionsForAI, setAllQuestionsForAI] = useState<WrongQuestion[]>([]);
+  const [homeQuote, setHomeQuote] = useState<string>(HOME_QUOTES[0]);
 
   useEffect(() => {
+    // 随机首页激励文案
+    const idx = Math.floor(Math.random() * HOME_QUOTES.length);
+    setHomeQuote(HOME_QUOTES[idx]);
+
     if (currentView === 'subject' && selectedSubject) {
       loadQuestions(selectedSubject);
     }
@@ -694,7 +709,7 @@ export default function App() {
             >
               <header className="py-6">
                 <h1 className="text-3xl font-bold tracking-tight">学霸错题本</h1>
-                <p className="text-[#8E8E93] mt-1">记录每一次进步</p>
+                <p className="text-[#8E8E93] mt-1">{homeQuote}</p>
               </header>
 
               <div className="grid grid-cols-2 gap-4">
@@ -847,13 +862,6 @@ export default function App() {
                   </div>
                 )}
               </div>
-
-              <button 
-                onClick={() => setIsActionSheetOpen(true)}
-                className="fixed bottom-8 right-8 w-14 h-14 bg-blue-500 text-white rounded-full shadow-xl flex items-center justify-center active:scale-90 transition-transform z-50"
-              >
-                <Plus className="w-8 h-8" />
-              </button>
             </motion.div>
           )}
 
