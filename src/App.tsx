@@ -461,18 +461,25 @@ export default function App() {
 
     try {
       setIsAnalyzing(true);
-      const analysis = await analyzeQuestionImage(tempImage, selectedSubject, userHint);
-      
-      const newQuestion: WrongQuestion = {
-        subject: selectedSubject,
-        title: analysis.title,
-        tags: analysis.tags,
-        image: tempImage,
-        analysis: analysis,
-        createdAt: Date.now(),
-      };
+      const analyses = await analyzeQuestionImage(tempImage, selectedSubject, userHint);
 
-      await saveQuestion(newQuestion);
+      if (!analyses || analyses.length === 0) {
+        alert('AI 未能识别出有效的错题，请稍后重试或调整提示。');
+        return;
+      }
+
+      for (const analysis of analyses) {
+        const newQuestion: WrongQuestion = {
+          subject: selectedSubject,
+          title: analysis.title,
+          tags: analysis.tags,
+          image: tempImage,
+          analysis,
+          createdAt: Date.now(),
+        };
+        await saveQuestion(newQuestion);
+      }
+
       await loadQuestions(selectedSubject);
       setTempImage(null);
       setUserHint('');
