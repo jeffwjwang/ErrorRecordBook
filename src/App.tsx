@@ -203,9 +203,9 @@ export default function App() {
       setIsSharing(true);
       setIsShareSheetOpen(false);
       
+      // Load html2canvas dynamically
       const html2canvas = (await import('html2canvas')).default;
       
-      // Generate descriptive filename
       const subjectMap = {
         'Chinese': '语文',
         'Math': '数学',
@@ -216,60 +216,86 @@ export default function App() {
       const tagsStr = selectedQuestion.tags.length > 0 ? `_${selectedQuestion.tags.join(',')}` : '';
       const fileName = `[${subjectMap[selectedQuestion.subject]}]_${selectedQuestion.title}${tagsStr}_${date}`;
       
-      // Wait longer for Mermaid and other renders to be fully ready
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Wait for Mermaid and other renders to be fully ready
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       const element = detailRef.current;
+      
+      // Create a canvas with optimized settings
       const canvas = await html2canvas(element, {
         backgroundColor: '#F2F2F7',
-        scale: 2, // Higher scale for better quality
+        scale: window.devicePixelRatio > 1 ? 1.5 : 2, // Adaptive scale for performance
         useCORS: true,
         allowTaint: true,
         logging: false,
-        imageTimeout: 0,
-        windowWidth: 430, // Force mobile width for capture
+        imageTimeout: 15000,
+        scrollX: 0,
+        scrollY: -window.scrollY, // Adjust for current scroll position
+        windowWidth: 430,
         onclone: (clonedDoc) => {
           const clonedElement = clonedDoc.getElementById('print-area');
           if (clonedElement) {
             clonedElement.style.width = '430px';
-            clonedElement.style.margin = '0';
-            clonedElement.style.padding = '20px';
+            clonedElement.style.height = 'auto';
+            clonedElement.style.overflow = 'visible';
             clonedElement.style.borderRadius = '0';
+            // Ensure all images are loaded in the clone
+            const images = clonedElement.getElementsByTagName('img');
+            for (let i = 0; i < images.length; i++) {
+              images[i].style.display = 'block';
+            }
           }
         }
       });
 
-      canvas.toBlob(async (blob) => {
-        if (!blob) {
-          throw new Error('Canvas to Blob failed');
-        }
+      // Try to use Web Share API first
+      if (navigator.share && navigator.canShare) {
+        canvas.toBlob(async (blob) => {
+          if (!blob) {
+            // Fallback if blob fails
+            const dataUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `${fileName}.png`;
+            link.href = dataUrl;
+            link.click();
+            return;
+          }
 
-        const file = new File([blob], `${fileName}.png`, { type: 'image/png' });
-
-        try {
-          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: fileName,
-              text: '来自学霸错题本的分享',
-            });
+          const file = new File([blob], `${fileName}.png`, { type: 'image/png' });
+          
+          if (navigator.canShare({ files: [file] })) {
+            try {
+              await navigator.share({
+                files: [file],
+                title: fileName,
+                text: '来自学霸错题本的分享',
+              });
+            } catch (shareError) {
+              console.error('Share API failed:', shareError);
+              // Fallback to direct download
+              const dataUrl = canvas.toDataURL('image/png');
+              const link = document.createElement('a');
+              link.download = `${fileName}.png`;
+              link.href = dataUrl;
+              link.click();
+            }
           } else {
+            // Fallback to direct download
             const dataUrl = canvas.toDataURL('image/png');
             const link = document.createElement('a');
             link.download = `${fileName}.png`;
             link.href = dataUrl;
             link.click();
           }
-        } catch (shareError) {
-          console.error('Share API failed:', shareError);
-          // Fallback to download
-          const dataUrl = canvas.toDataURL('image/png');
-          const link = document.createElement('a');
-          link.download = `${fileName}.png`;
-          link.href = dataUrl;
-          link.click();
-        }
-      }, 'image/png');
+        }, 'image/png');
+      } else {
+        // Fallback for browsers without Share API
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `${fileName}.png`;
+        link.href = dataUrl;
+        link.click();
+      }
 
     } catch (error) {
       console.error('Capture failed:', error);
