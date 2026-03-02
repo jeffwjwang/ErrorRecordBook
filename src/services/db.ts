@@ -8,13 +8,29 @@ export interface WrongQuestion {
   image: string; // Base64 compressed image
   analysis: {
     questionText: string;
-    studentAnswer: string;
+    comparison: {
+      studentAnswer: string;
+      standardAnswer: string;
+      gapAnalysis: string;
+    };
     isCorrect: boolean;
     solution: string;
-    errorAnalysis: string;
-    knowledgePoints: string[];
-    examinerIntent: string;
+    errorRoot: {
+      category: 'Careless' | 'FormulaError' | 'ConceptConfused' | 'LogicGap' | 'KnowledgeBlind' | 'TimePressure';
+      detailedReason: string;
+    };
+    knowledgeMap: {
+      primaryPoint: string;
+      relatedPoints: string[];
+    };
+    logicEngine: {
+      mermaidCode: string;
+      excalidrawJson?: string;
+      difficulty: number;
+      examinerIntent: string;
+    };
     masteryLevel: string;
+    variationQuestion?: string;
   };
   createdAt: number;
 }
