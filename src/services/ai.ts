@@ -33,11 +33,16 @@ export interface AIAnalysisResult {
 
 export async function analyzeQuestionImage(base64Image: string, subject: string, userHint?: string): Promise<AIAnalysisResult[]> {
   const model = "gemini-3-flash-preview";
-  
+  const targetNumbers = userHint ? userHint.match(/\d+/g)?.map(n => parseInt(n, 10)).filter(n => !Number.isNaN(n)) : undefined;
+
   const prompt = `你是一个资深的${subject}专家。请深度分析这张错题图片，并输出结构严谨的 JSON 数据。
 
 ${userHint ? `用户补充提示：${userHint}
 如果提示中出现了多道题（例如"第40和41题错了"），你必须分别分析每一道错题，并为每一道错题输出一条独立的记录。` : ''}
+
+${targetNumbers && targetNumbers.length > 0 ? `本次只需要分析题目前的编号为：${targetNumbers.join('、')} 的这些题。
+如果图片中还有其他编号的题目（例如 40 题），但不在上述编号列表中，则不要为这些题生成记录。
+对于你返回的每一条记录，请在 title 字段中显式包含对应的题号，例如："第${targetNumbers[0]}题：……"。` : ''}
 
 分析要求：
 1. 识别题目内容与学生作答（如果有多道题，需逐题识别）。
