@@ -613,12 +613,6 @@ export default function App() {
                     </p>
                   </div>
 
-                  {/* Logical Visualization */}
-                  <div className="space-y-3">
-                    <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest px-2">逻辑推演</h2>
-                    <MermaidRenderer chart={selectedQuestion.analysis.logicEngine?.mermaidCode || (selectedQuestion.analysis as any).mermaidCode || ''} />
-                  </div>
-
                   {/* Step by Step Analysis - Line Guidance */}
                   <div className="space-y-6 line-guidance px-2">
                     <div className="relative pl-10">
@@ -641,9 +635,12 @@ export default function App() {
                       <div className="absolute left-0 top-0 w-8 h-8 bg-white rounded-full border-2 border-blue-500 flex items-center justify-center z-10 shadow-sm">
                         <span className="text-xs font-bold text-blue-600">03</span>
                       </div>
-                      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">解题路径</h3>
-                      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-                        <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{selectedQuestion.analysis.solution}</p>
+                      <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">解题路径 (逻辑推演)</h3>
+                      <div className="space-y-4">
+                        <MermaidRenderer chart={selectedQuestion.analysis.logicEngine?.mermaidCode || (selectedQuestion.analysis as any).mermaidCode || ''} />
+                        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                          <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-sm">{selectedQuestion.analysis.solution}</p>
+                        </div>
                       </div>
                     </div>
 
