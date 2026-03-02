@@ -556,9 +556,9 @@ export default function App() {
                     <span className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">核心知识点</span>
                     <div className="flex flex-wrap gap-2">
                       <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-sm font-bold border border-blue-100">
-                        {selectedQuestion.analysis.knowledgeMap.primaryPoint}
+                        {selectedQuestion.analysis.knowledgeMap?.primaryPoint || (selectedQuestion.analysis as any).knowledgePoints?.[0] || '未分类'}
                       </span>
-                      {selectedQuestion.analysis.knowledgeMap.relatedPoints.map(kp => (
+                      {(selectedQuestion.analysis.knowledgeMap?.relatedPoints || (selectedQuestion.analysis as any).knowledgePoints?.slice(1) || []).map((kp: string) => (
                         <span key={kp} className="px-3 py-1 bg-gray-50 text-gray-500 rounded-lg text-sm border border-gray-100">
                           {kp}
                         </span>
@@ -570,14 +570,14 @@ export default function App() {
                   <div className="col-span-2 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col space-y-2">
                     <span className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">我的答案</span>
                     <div className="text-red-500 font-bold text-sm break-words line-clamp-3">
-                      {selectedQuestion.analysis.comparison.studentAnswer || '无'}
+                      {selectedQuestion.analysis.comparison?.studentAnswer || (selectedQuestion.analysis as any).studentAnswer || '无'}
                     </div>
                   </div>
                   
                   <div className="col-span-2 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col space-y-2">
                     <span className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">标准答案</span>
                     <div className="text-emerald-600 font-bold text-sm break-words line-clamp-3">
-                      {selectedQuestion.analysis.comparison.standardAnswer}
+                      {selectedQuestion.analysis.comparison?.standardAnswer || '见解析'}
                     </div>
                   </div>
 
@@ -586,7 +586,7 @@ export default function App() {
                     <span className="text-[10px] text-gray-400 uppercase font-bold tracking-widest">难度</span>
                     <div className="flex text-amber-400">
                       {Array.from({ length: 5 }).map((_, i) => (
-                        <Sparkles key={i} className={cn("w-3 h-3", i < (selectedQuestion.analysis.logicEngine.difficulty || 3) ? "fill-current" : "text-gray-200")} />
+                        <Sparkles key={i} className={cn("w-3 h-3", i < (selectedQuestion.analysis.logicEngine?.difficulty || (selectedQuestion.analysis as any).difficulty || 3) ? "fill-current" : "text-gray-200")} />
                       ))}
                     </div>
                   </div>
@@ -609,14 +609,14 @@ export default function App() {
                     <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
                     <h2 className="text-sm font-bold uppercase tracking-widest mb-3 opacity-80">核心洞察</h2>
                     <p className="text-xl font-display font-medium leading-relaxed italic">
-                      “{selectedQuestion.analysis.comparison.gapAnalysis}”
+                      “{selectedQuestion.analysis.comparison?.gapAnalysis || (selectedQuestion.analysis as any).knowledgePoints?.[0] || '深度解析中...'}”
                     </p>
                   </div>
 
                   {/* Logical Visualization */}
                   <div className="space-y-3">
                     <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest px-2">逻辑推演</h2>
-                    <MermaidRenderer chart={selectedQuestion.analysis.logicEngine.mermaidCode} />
+                    <MermaidRenderer chart={selectedQuestion.analysis.logicEngine?.mermaidCode || (selectedQuestion.analysis as any).mermaidCode || ''} />
                   </div>
 
                   {/* Step by Step Analysis - Line Guidance */}
@@ -634,7 +634,7 @@ export default function App() {
                         <span className="text-xs font-bold text-blue-600">02</span>
                       </div>
                       <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">出题人意图</h3>
-                      <p className="text-gray-700 leading-relaxed">{selectedQuestion.analysis.logicEngine.examinerIntent}</p>
+                      <p className="text-gray-700 leading-relaxed">{selectedQuestion.analysis.logicEngine?.examinerIntent || (selectedQuestion.analysis as any).examinerIntent}</p>
                     </div>
 
                     <div className="relative pl-10">
@@ -656,10 +656,10 @@ export default function App() {
                         <div className="flex items-center justify-between mb-2">
                           <h3 className="text-xs font-bold uppercase tracking-widest opacity-80">错误根源剖析</h3>
                           <span className="px-2 py-0.5 bg-white/20 rounded text-[10px] font-bold">
-                            {selectedQuestion.analysis.errorRoot.category}
+                            {selectedQuestion.analysis.errorRoot?.category || '未分类'}
                           </span>
                         </div>
-                        <p className="font-medium">{selectedQuestion.analysis.errorRoot.detailedReason}</p>
+                        <p className="font-medium">{selectedQuestion.analysis.errorRoot?.detailedReason || (selectedQuestion.analysis as any).errorAnalysis}</p>
                       </div>
                     </div>
 
