@@ -48,6 +48,229 @@ const SUBJECTS: { id: Subject; name: string; color: string; icon: React.ReactNod
   { id: 'Physics', name: '物理', color: 'bg-emerald-500', icon: <div className="font-bold text-xl">Φ</div> },
 ];
 
+function buildShareHtml(question: WrongQuestion): string {
+  const subjectMap: Record<WrongQuestion['subject'], string> = {
+    Chinese: '语文',
+    Math: '数学',
+    English: '英语',
+    Physics: '物理',
+  };
+
+  const dateStr = new Date(question.createdAt).toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  const tagsStr = question.tags.join(' · ');
+  const primaryPoint = question.analysis.knowledgeMap?.primaryPoint || '未分类';
+  const relatedPoints = question.analysis.knowledgeMap?.relatedPoints || [];
+  const studentAnswer = question.analysis.comparison?.studentAnswer || '无';
+  const standardAnswer = question.analysis.comparison?.standardAnswer || '见解析';
+  const gapAnalysis = question.analysis.comparison?.gapAnalysis || '';
+  const errorCategory = question.analysis.errorRoot?.category || '未分类';
+  const errorReason = question.analysis.errorRoot?.detailedReason || '';
+  const masteryLevel = question.analysis.masteryLevel || '';
+  const variationQuestion = question.analysis.variationQuestion || '';
+
+  return `
+  <div style="padding: 40px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif; background:#F2F2F7;">
+    <style>
+      .card-root {
+        max-width: 820px;
+        margin: 0 auto;
+        background: #FDFDFB;
+        border-radius: 32px;
+        padding: 40px 36px 32px 36px;
+        box-shadow: 0 24px 80px rgba(0,0,0,0.08);
+        border: 1px solid rgba(0,0,0,0.03);
+      }
+      .badge {
+        display:inline-flex;
+        align-items:center;
+        padding:4px 10px;
+        border-radius:999px;
+        font-size:11px;
+        font-weight:700;
+        letter-spacing:.12em;
+        text-transform:uppercase;
+        background:#111827;
+        color:white;
+      }
+      .title {
+        margin-top:20px;
+        font-size:30px;
+        font-weight:800;
+        letter-spacing:-0.03em;
+        color:#111827;
+        line-height:1.2;
+      }
+      .meta {
+        margin-top:8px;
+        font-size:12px;
+        color:#6B7280;
+        display:flex;
+        gap:12px;
+        align-items:center;
+      }
+      .image-wrap {
+        margin-top:24px;
+        border-radius:24px;
+        overflow:hidden;
+        border:1px solid rgba(0,0,0,0.04);
+        background:#F3F4F6;
+      }
+      .image-wrap img {
+        width:100%;
+        display:block;
+      }
+      .section {
+        margin-top:24px;
+        padding:20px 18px;
+        border-radius:20px;
+        background:white;
+        border:1px solid rgba(0,0,0,0.03);
+      }
+      .section-label {
+        font-size:11px;
+        font-weight:700;
+        text-transform:uppercase;
+        letter-spacing:.18em;
+        color:#9CA3AF;
+        margin-bottom:8px;
+      }
+      .chips {
+        display:flex;
+        flex-wrap:wrap;
+        gap:8px;
+        margin-top:4px;
+      }
+      .chip {
+        padding:4px 10px;
+        border-radius:999px;
+        font-size:11px;
+        background:#EFF6FF;
+        color:#1D4ED8;
+        font-weight:600;
+      }
+      .chip-gray {
+        background:#F3F4F6;
+        color:#4B5563;
+      }
+      .qa-row {
+        display:flex;
+        gap:16px;
+        flex-wrap:wrap;
+      }
+      .qa-col {
+        flex:1 1 260px;
+        padding:14px 14px 12px;
+        border-radius:16px;
+        background:#F9FAFB;
+      }
+      .qa-label {
+        font-size:11px;
+        font-weight:700;
+        text-transform:uppercase;
+        letter-spacing:.18em;
+        color:#9CA3AF;
+        margin-bottom:4px;
+      }
+      .qa-text {
+        font-size:14px;
+        color:#111827;
+        line-height:1.7;
+        white-space:pre-wrap;
+      }
+      .pill {
+        display:inline-flex;
+        align-items:center;
+        padding:2px 8px;
+        border-radius:999px;
+        font-size:10px;
+        font-weight:700;
+        background:#EEF2FF;
+        color:#4F46E5;
+        margin-left:8px;
+      }
+      .analysis {
+        font-size:14px;
+        color:#111827;
+        line-height:1.7;
+        white-space:pre-wrap;
+      }
+      .footnote {
+        margin-top:24px;
+        text-align:center;
+        font-size:10px;
+        color:#9CA3AF;
+        text-transform:uppercase;
+        letter-spacing:.25em;
+      }
+      .variation-box {
+        margin-top:12px;
+        padding:12px;
+        border-radius:18px;
+        background:#F9FAFB;
+        font-size:13px;
+        color:#111827;
+        line-height:1.7;
+        white-space:pre-wrap;
+      }
+    </style>
+    <div class="card-root">
+      <div class="badge">学霸错题本 · ${subjectMap[question.subject]}</div>
+      <div class="title">${question.title}</div>
+      <div class="meta">
+        <span>${dateStr}</span>
+        ${tagsStr ? `<span>·</span><span>${tagsStr}</span>` : ''}
+      </div>
+
+      <div class="image-wrap">
+        <img src="${question.image}" alt="question" />
+      </div>
+
+      <div class="section">
+        <div class="section-label">核心知识点</div>
+        <div class="chips">
+          <div class="chip">${primaryPoint}</div>
+          ${relatedPoints.map((p) => `<div class="chip chip-gray">${p}</div>`).join('')}
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="qa-row">
+          <div class="qa-col">
+            <div class="qa-label">我的答案</div>
+            <div class="qa-text">${studentAnswer}</div>
+          </div>
+          <div class="qa-col">
+            <div class="qa-label">标准答案</div>
+            <div class="qa-text">${standardAnswer}</div>
+          </div>
+        </div>
+      </div>
+
+      ${(gapAnalysis || errorReason || masteryLevel) ? `
+      <div class="section">
+        <div class="section-label">错误剖析与掌握建议</div>
+        ${gapAnalysis ? `<div class="analysis">认知差异：${gapAnalysis}</div>` : ''}
+        ${errorReason ? `<div class="analysis" style="margin-top:8px;">错误根源（${errorCategory}）：${errorReason}</div>` : ''}
+        ${masteryLevel ? `<div class="analysis" style="margin-top:8px;">掌握建议：${masteryLevel}</div>` : ''}
+      </div>` : ''}
+
+      ${variationQuestion ? `
+      <div class="section">
+        <div class="section-label">同类变式练习<span class="pill">自测巩固</span></div>
+        <div class="variation-box">${variationQuestion}</div>
+      </div>` : ''}
+
+      <div class="footnote">ERROR RECORD BOOK · AI POWERED LEARNING</div>
+    </div>
+  </div>
+  `;
+}
+
 export default function App() {
   const [currentView, setCurrentView] = useState<'home' | 'subject' | 'upload' | 'detail' | 'settings' | 'ai-chat' | 'upload-preview'>('home');
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
@@ -197,12 +420,25 @@ export default function App() {
   };
 
   const handleShareImage = async () => {
-    if (!detailRef.current || !selectedQuestion) return;
+    if (!selectedQuestion) return;
     
     try {
       setIsSharing(true);
       setIsShareSheetOpen(false);
-      
+
+      // 离屏构建“分享海报”DOM，避免直接截真实页面造成兼容/性能问题
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.width = '820px';
+      container.style.background = '#F2F2F7';
+      container.innerHTML = buildShareHtml(selectedQuestion);
+      document.body.appendChild(container);
+
+      // 等待图片 / 字体加载
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
       const subjectMap = {
         'Chinese': '语文',
         'Math': '数学',
@@ -212,120 +448,61 @@ export default function App() {
       const date = new Date(selectedQuestion.createdAt).toLocaleDateString('zh-CN').replace(/\//g, '-');
       const tagsStr = selectedQuestion.tags.length > 0 ? `_${selectedQuestion.tags.join(',')}` : '';
       const fileName = `[${subjectMap[selectedQuestion.subject]}]_${selectedQuestion.title}${tagsStr}_${date}`;
-      
-      // 等待 Mermaid 等异步渲染完成，避免截到半成品
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const element = detailRef.current;
-      if (!element) {
-        throw new Error('detail element not found');
-      }
 
-      // 优先使用 html2canvas 截图（对布局控制更细）
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(element, {
-        backgroundColor: '#F2F2F7',
-        // 移动端更保守一点，避免过大分辨率导致崩溃
-        scale: window.devicePixelRatio > 2 ? 1.5 : 2,
+      const canvas = await html2canvas(container, {
+        scale: 2,
         useCORS: true,
-        allowTaint: false,
+        backgroundColor: '#F2F2F7',
         logging: false,
-        imageTimeout: 15000,
-        scrollX: 0,
-        scrollY: -window.scrollY,
-        windowWidth: 430,
-        onclone: (clonedDoc) => {
-          const clonedElement = clonedDoc.getElementById('print-area');
-          if (clonedElement) {
-            clonedElement.style.width = '430px';
-            clonedElement.style.height = 'auto';
-            clonedElement.style.overflow = 'visible';
-            clonedElement.style.borderRadius = '0';
-            const images = clonedElement.getElementsByTagName('img');
-            for (let i = 0; i < images.length; i++) {
-              images[i].style.display = 'block';
-            }
-          }
-        }
+        allowTaint: true,
       });
 
-      const downloadFromDataUrl = (dataUrl: string) => {
-        const link = document.createElement('a');
-        link.download = `${fileName}.png`;
-        link.href = dataUrl;
-        link.click();
+      // 截图完毕后移除离屏 DOM，避免污染页面
+      document.body.removeChild(container);
+
+      const shareOrDownload = (blob: Blob) => {
+        const file = new File([blob], `${fileName}.png`, { type: 'image/png' });
+        const navAny = navigator as any;
+
+        if (navAny.share && navAny.canShare && navAny.canShare({ files: [file] })) {
+          navAny.share({
+            files: [file],
+            title: fileName,
+            text: '来自学霸错题本的分享',
+          }).catch((err: unknown) => {
+            console.error('Share API failed:', err);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = file.name;
+            a.click();
+            URL.revokeObjectURL(url);
+          });
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = file.name;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
       };
 
-      const dataUrlFromCanvas = () => canvas.toDataURL('image/png');
-
-      // 优先使用 Web Share API（如果可用）
-      if (navigator.share && (navigator as any).canShare) {
-        canvas.toBlob(async (blob) => {
+      await new Promise<void>((resolve, reject) => {
+        canvas.toBlob((blob) => {
           if (!blob) {
-            // 某些移动浏览器上 toBlob 可能返回 null，退回到直接下载
-            const dataUrl = dataUrlFromCanvas();
-            downloadFromDataUrl(dataUrl);
+            reject(new Error('生成图片失败：blob 为空'));
             return;
           }
-
-          const file = new File([blob], `${fileName}.png`, { type: 'image/png' });
-          
-          if ((navigator as any).canShare({ files: [file] })) {
-            try {
-              await navigator.share({
-                files: [file],
-                title: fileName,
-                text: '来自学霸错题本的分享',
-              });
-            } catch (shareError) {
-              console.error('Share API failed:', shareError);
-              const dataUrl = dataUrlFromCanvas();
-              downloadFromDataUrl(dataUrl);
-            }
-          } else {
-            const dataUrl = dataUrlFromCanvas();
-            downloadFromDataUrl(dataUrl);
-          }
+          shareOrDownload(blob);
+          resolve();
         }, 'image/png');
-      } else {
-        const dataUrl = dataUrlFromCanvas();
-        downloadFromDataUrl(dataUrl);
-      }
+      });
 
     } catch (error) {
-      console.error('Capture failed, trying fallback with dom-to-image-more:', error);
-      // html2canvas 在部分移动端浏览器上不稳定，这里用 dom-to-image-more 兜底
-      try {
-        if (!detailRef.current || !selectedQuestion) throw error;
-        const element = detailRef.current;
-        const subjectMap = {
-          'Chinese': '语文',
-          'Math': '数学',
-          'English': '英语',
-          'Physics': '物理'
-        };
-        const date = new Date(selectedQuestion.createdAt).toLocaleDateString('zh-CN').replace(/\//g, '-');
-        const tagsStr = selectedQuestion.tags.length > 0 ? `_${selectedQuestion.tags.join(',')}` : '';
-        const fallbackFileName = `[${subjectMap[selectedQuestion.subject]}]_${selectedQuestion.title}${tagsStr}_${date}`;
-
-        const domtoimage = (await import('dom-to-image-more')).default;
-        const dataUrl = await domtoimage.toPng(element, {
-          bgcolor: '#F2F2F7',
-          quality: 1,
-          style: {
-            transform: 'scale(1)',
-            transformOrigin: 'top left',
-          },
-        });
-
-        const link = document.createElement('a');
-        link.download = `${fallbackFileName}.png`;
-        link.href = dataUrl;
-        link.click();
-      } catch (fallbackError) {
-        console.error('Fallback capture failed:', fallbackError);
-        alert('生成分享图片失败，请尝试系统打印或截屏分享');
-      }
+      console.error('Capture failed:', error);
+      alert('生成分享图片失败，请尝试系统打印或截屏分享');
     } finally {
       setIsSharing(false);
     }
