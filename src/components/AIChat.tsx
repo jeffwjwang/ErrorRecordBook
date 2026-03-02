@@ -47,8 +47,8 @@ export default function AIChat({ onBack, questions }: AIChatProps) {
         subject: q.subject,
         title: q.title,
         tags: q.tags,
-        knowledgePoints: q.analysis.knowledgePoints,
-        errorAnalysis: q.analysis.errorAnalysis,
+        primaryKnowledgePoint: q.analysis.knowledgeMap?.primaryPoint || '未知',
+        errorReason: q.analysis.errorRoot?.detailedReason || '未分析',
         masteryLevel: q.analysis.masteryLevel,
         date: new Date(q.createdAt).toLocaleDateString()
       }));
